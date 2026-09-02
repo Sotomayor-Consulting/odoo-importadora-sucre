@@ -1,0 +1,50 @@
+services:
+  db:
+    image: postgres:16
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: postgres
+    volumes:
+      - db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER}"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
+
+  odoo:
+    build:
+      context: .
+      secrets:
+        - r2_url
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      # Consumidas por el entrypoint oficial para construir los argumentos
+      # de conexion. Ver el comentario en odoo.conf.
+      HOST: db
+      PORT: 5432
+      USER: ${POSTGRES_USER}
+      PASSWORD: ${POSTGRES_PASSWORD}
+    volumes:
+      # Filestore y sesiones. Sin esto se pierden los adjuntos en cada
+      # redespliegue y las sesiones se invalidan.
+      - odoo-data:/var/lib/odoo
+    expose:
+      - "8069"   # HTTP
+      - "8072"   # websockets (chat, notificaciones en vivo)
+    restart: unless-stopped
+
+# La URL prefirmada de R2 se toma de la variable R2_URL que define Dokploy.
+# Verificado: Compose la resuelve desde el archivo .env que Dokploy genera,
+# sin necesidad de exportarla en el shell.
+secrets:
+  r2_url:
+    environment: R2_URL
+
+volumes:
+  db-data: 
+  odoo-data: 

@@ -1,0 +1,34 @@
+# --- Fuente de Odoo ---
+# NUNCA se versiona: vive en Cloudflare R2 y la descarga el build.
+# Son ~2 GB que harian lento cada clon de Dokploy, y contienen codigo OEEL-1.
+odoo_*.tar.gz
+odoo-*.tar.gz
+odoo-19.0*/
+enterprise/
+odoo/
+
+# --- Pruebas locales ---
+# Compose carga docker-compose.override.yml AUTOMATICAMENTE. Si se versionara,
+# Dokploy lo fusionaria en produccion sin que nadie lo pida. Nunca commitear.
+docker-compose.override.yml
+
+# --- Secretos ---
+.env
+*.pem
+*.key
+
+# --- Python ---
+__pycache__/
+*.py[cod]
+*.egg-info/
+
+# --- Datos locales ---
+filestore/
+sessions/
+*.log
+
+# --- Editores / SO ---
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
