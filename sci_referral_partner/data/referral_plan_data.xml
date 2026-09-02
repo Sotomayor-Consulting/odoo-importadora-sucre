@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo noupdate="1">
+    <!-- Plan del programa SCI (default para nuevos partners).
+         Las reglas (15% incorporacion, 5% el resto) se configuran sobre las
+         categorias reales de productos de SCI desde la UI del plan. -->
+    <record id="plan_program" model="referral.commission.plan">
+        <field name="name">Programa SCI Referidos</field>
+    </record>
+</odoo>

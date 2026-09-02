@@ -1,0 +1,138 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="l10n_ec_salary_rule_basic" model="hr.salary.rule">
+        <field name="name">Sueldo basico</field>
+        <field name="code">BASIC</field>
+        <field name="sequence">100</field>
+        <field name="struct_id" ref="l10n_ec_payroll_structure_employee"/>
+        <field name="category_id" ref="l10n_ec_salary_rule_category_earnings"/>
+        <field name="condition_select">none</field>
+        <field name="amount_select">code</field>
+        <field name="amount_python_compute">result = payslip._l10n_ec_get_base_wage(version)</field>
+        <field name="appears_on_payslip">True</field>
+    </record>
+
+    <record id="l10n_ec_salary_rule_iess_employee" model="hr.salary.rule">
+        <field name="name">Aporte IESS trabajador</field>
+        <field name="code">IESS_EMPLOYEE</field>
+        <field name="sequence">200</field>
+        <field name="struct_id" ref="l10n_ec_payroll_structure_employee"/>
+        <field name="category_id" ref="l10n_ec_salary_rule_category_deductions"/>
+        <field name="condition_select">none</field>
+        <field name="amount_select">code</field>
+        <field name="amount_python_compute">base_wage = payslip._l10n_ec_get_base_wage(version)
+result = version and version.l10n_ec_apply_iess and base_wage * payslip._rule_parameter('EC_IESS_EMPLOYEE_RATE') / 100.0 or 0.0</field>
+        <field name="appears_on_payslip">True</field>
+    </record>
+
+    <record id="l10n_ec_salary_rule_quincena" model="hr.salary.rule">
+        <field name="name">Quincena</field>
+        <field name="code">QUINCENA</field>
+        <field name="sequence">250</field>
+        <field name="struct_id" ref="l10n_ec_payroll_structure_employee"/>
+        <field name="category_id" ref="l10n_ec_salary_rule_category_deductions"/>
+        <field name="condition_select">none</field>
+        <field name="amount_select">code</field>
+        <field name="amount_python_compute">result = version.l10n_ec_pay_quincena and payslip._l10n_ec_get_quincena_amount(version) or 0.0</field>
+        <field name="appears_on_payslip">True</field>
+    </record>
+
+    <record id="l10n_ec_salary_rule_thirteenth_salary_monthly" model="hr.salary.rule">
+        <field name="name">Decimo tercero mensualizado</field>
+        <field name="code">THIRTEENTH_MONTHLY</field>
+        <field name="sequence">300</field>
+        <field name="struct_id" ref="l10n_ec_payroll_structure_employee"/>
+        <field name="category_id" ref="l10n_ec_salary_rule_category_earnings"/>
+        <field name="condition_select">none</field>
+        <field name="amount_select">code</field>
+        <field name="amount_python_compute">base_wage = payslip._l10n_ec_get_base_wage(version)
+result = payslip._l10n_ec_is_monthly_payment(version, 'l10n_ec_thirteenth_salary_payment') and base_wage / 12.0 or 0.0</field>
+        <field name="appears_on_payslip">True</field>
+    </record>
+
+    <record id="l10n_ec_salary_rule_thirteenth_salary_accrual" model="hr.salary.rule">
+        <field name="name">Decimo tercero acumulado</field>
+        <field name="code">THIRTEENTH_ACCRUAL</field>
+        <field name="sequence">310</field>
+        <field name="struct_id" ref="l10n_ec_payroll_structure_employee"/>
+        <field name="category_id" ref="l10n_ec_salary_rule_category_information"/>
+        <field name="condition_select">none</field>
+        <field name="amount_select">code</field>
+        <field name="amount_python_compute">base_wage = payslip._l10n_ec_get_base_wage(version)
+result = payslip._l10n_ec_is_accumulated_payment(version, 'l10n_ec_thirteenth_salary_payment') and base_wage / 12.0 or 0.0</field>
+        <field name="appears_on_payslip">True</field>
+    </record>
+
+    <record id="l10n_ec_salary_rule_fourteenth_salary_monthly" model="hr.salary.rule">
+        <field name="name">Decimo cuarto mensualizado</field>
+        <field name="code">FOURTEENTH_MONTHLY</field>
+        <field name="sequence">320</field>
+        <field name="struct_id" ref="l10n_ec_payroll_structure_employee"/>
+        <field name="category_id" ref="l10n_ec_salary_rule_category_earnings"/>
+        <field name="condition_select">none</field>
+        <field name="amount_select">code</field>
+        <field name="amount_python_compute">result = payslip._l10n_ec_is_monthly_payment(version, 'l10n_ec_fourteenth_salary_payment') and payslip._rule_parameter('EC_SBU') / 12.0 or 0.0</field>
+        <field name="appears_on_payslip">True</field>
+    </record>
+
+    <record id="l10n_ec_salary_rule_fourteenth_salary_accrual" model="hr.salary.rule">
+        <field name="name">Decimo cuarto acumulado</field>
+        <field name="code">FOURTEENTH_ACCRUAL</field>
+        <field name="sequence">330</field>
+        <field name="struct_id" ref="l10n_ec_payroll_structure_employee"/>
+        <field name="category_id" ref="l10n_ec_salary_rule_category_information"/>
+        <field name="condition_select">none</field>
+        <field name="amount_select">code</field>
+        <field name="amount_python_compute">result = payslip._l10n_ec_is_accumulated_payment(version, 'l10n_ec_fourteenth_salary_payment') and payslip._rule_parameter('EC_SBU') / 12.0 or 0.0</field>
+        <field name="appears_on_payslip">True</field>
+    </record>
+
+    <record id="l10n_ec_salary_rule_reserve_fund_monthly" model="hr.salary.rule">
+        <field name="name">Fondos de reserva mensualizados</field>
+        <field name="code">RESERVE_FUND_MONTHLY</field>
+        <field name="sequence">340</field>
+        <field name="struct_id" ref="l10n_ec_payroll_structure_employee"/>
+        <field name="category_id" ref="l10n_ec_salary_rule_category_earnings"/>
+        <field name="condition_select">none</field>
+        <field name="amount_select">code</field>
+        <field name="amount_python_compute">result = payslip._l10n_ec_is_monthly_payment(version, 'l10n_ec_reserve_fund_payment') and payslip._l10n_ec_get_reserve_fund_prorated_amount(version) or 0.0</field>
+        <field name="appears_on_payslip">True</field>
+    </record>
+
+    <record id="l10n_ec_salary_rule_reserve_fund_accrual" model="hr.salary.rule">
+        <field name="name">Fondos de reserva acumulados</field>
+        <field name="code">RESERVE_FUND_ACCRUAL</field>
+        <field name="sequence">350</field>
+        <field name="struct_id" ref="l10n_ec_payroll_structure_employee"/>
+        <field name="category_id" ref="l10n_ec_salary_rule_category_information"/>
+        <field name="condition_select">none</field>
+        <field name="amount_select">code</field>
+        <field name="amount_python_compute">result = payslip._l10n_ec_is_accumulated_payment(version, 'l10n_ec_reserve_fund_payment') and payslip._l10n_ec_get_reserve_fund_prorated_amount(version) or 0.0</field>
+        <field name="appears_on_payslip">True</field>
+    </record>
+
+    <record id="l10n_ec_salary_rule_iess_employer_cost" model="hr.salary.rule">
+        <field name="name">Aporte patronal IESS</field>
+        <field name="code">IESS_EMPLOYER_COST</field>
+        <field name="sequence">360</field>
+        <field name="struct_id" ref="l10n_ec_payroll_structure_employee"/>
+        <field name="category_id" ref="l10n_ec_salary_rule_category_employer_cost"/>
+        <field name="condition_select">none</field>
+        <field name="amount_select">code</field>
+        <field name="amount_python_compute">base_wage = payslip._l10n_ec_get_base_wage(version)
+result = version and version.l10n_ec_apply_iess and base_wage * payslip._rule_parameter('EC_IESS_EMPLOYER_RATE') / 100.0 or 0.0</field>
+        <field name="appears_on_payslip">False</field>
+    </record>
+
+    <record id="l10n_ec_salary_rule_net" model="hr.salary.rule">
+        <field name="name">Neto</field>
+        <field name="code">NET</field>
+        <field name="sequence">900</field>
+        <field name="struct_id" ref="l10n_ec_payroll_structure_employee"/>
+        <field name="category_id" ref="l10n_ec_salary_rule_category_net"/>
+        <field name="condition_select">none</field>
+        <field name="amount_select">code</field>
+        <field name="amount_python_compute">result = categories['EC_EARN'] - categories['EC_DED']</field>
+        <field name="appears_on_payslip">True</field>
+    </record>
+</odoo>

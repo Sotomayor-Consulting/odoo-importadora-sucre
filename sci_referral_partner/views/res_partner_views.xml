@@ -1,0 +1,59 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="view_partner_form_referral" model="ir.ui.view">
+        <field name="name">res.partner.form.referral</field>
+        <field name="model">res.partner</field>
+        <field name="inherit_id" ref="base.view_partner_form"/>
+        <field name="arch" type="xml">
+            <xpath expr="//sheet" position="inside">
+                <widget name="web_ribbon" title="Partner"
+                        bg_color="text-bg-success"
+                        invisible="not is_referral_partner"/>
+            </xpath>
+            <xpath expr="//div[@name='button_box']" position="inside">
+                <button name="action_view_referred_partners" type="object"
+                        class="oe_stat_button" icon="fa-users"
+                        invisible="not is_referral_partner">
+                    <field name="referred_partner_count" widget="statinfo" string="Referidos"/>
+                </button>
+            </xpath>
+            <xpath expr="//notebook" position="inside">
+                <page string="Programa de referidos" name="sci_referral">
+                    <field name="is_referral_partner" invisible="1"/>
+                    <div invisible="is_referral_partner">
+                        <button name="%(action_referral_partner_convert)d"
+                                type="action"
+                                string="Convertir en Partner"
+                                class="btn-primary"
+                                icon="fa-handshake-o"/>
+                        <p class="text-muted mt-2">
+                            Convierte este contacto en Partner del programa de referidos
+                            para asignarle un codigo unico.
+                        </p>
+                    </div>
+                    <div class="alert alert-warning" role="alert"
+                         invisible="not is_referral_partner or referral_partner_contract">
+                        <i class="fa fa-exclamation-triangle me-2" title="Atencion"/>
+                        Este Partner aun no tiene el contrato cargado.
+                    </div>
+                    <group string="Partner"
+                           invisible="not is_referral_partner">
+                        <field name="referral_code" widget="CopyClipboardChar"/>
+                        <field name="referral_commission_plan_id"/>
+                        <field name="referral_agreement_date"/>
+                        <field name="referral_contract_end_date"/>
+                        <field name="referral_partner_contract_file_name" invisible="1"/>
+                        <field name="referral_partner_contract" widget="binary"
+                               filename="referral_partner_contract_file_name"/>
+                    </group>
+                    <group string="Referido" name="sci_referred">
+                        <field name="referral_code_entry"
+                               placeholder="Codigo del Partner (ej. A3F90C12E7)"/>
+                        <field name="referrer_partner_id"/>
+                        <field name="referral_validated"/>
+                    </group>
+                </page>
+            </xpath>
+        </field>
+    </record>
+</odoo>

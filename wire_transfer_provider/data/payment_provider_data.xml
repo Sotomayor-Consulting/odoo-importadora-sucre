@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo noupdate="1">
+
+    <record id="payment_provider_wire_transfer_provider" model="payment.provider">
+        <field name="name">Transferencia bancaria</field>
+        <field name="code">wire_transfer_provider</field>
+        <field name="redirect_form_view_id" ref="wire_transfer_provider.wire_transfer_provider_redirect_form"/>
+        <field name="pending_msg" eval="False"/>
+        <field name="payment_method_ids" eval="[Command.set([ref('payment.payment_method_bank_transfer')])]"/>
+        <field name="wire_allow_receipt_upload" eval="True"/>
+        <field name="wire_receipt_max_size_mb">2</field>
+    </record>
+
+    <function model="payment.provider"
+              name="_wire_ensure_pending_message"
+              eval="[[ref('wire_transfer_provider.payment_provider_wire_transfer_provider')]]"/>
+
+</odoo>

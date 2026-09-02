@@ -1,0 +1,29 @@
+msgid ""
+msgstr ""
+"Project-Id-Version: Odoo Server 19.0\n"
+"Language: es\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+
+#. module: wire_transfer_payment_flow
+msgid "Deferred transfer transactions can only be completed after bank reconciliation."
+msgstr "Las transacciones de transferencia diferida solo pueden completarse despues de la conciliacion bancaria."
+
+#. module: wire_transfer_payment_flow
+msgid "Only pending deferred transactions can be reconciled."
+msgstr "Solo se pueden conciliar transacciones diferidas en estado pendiente."
+
+#. module: wire_transfer_payment_flow
+msgid "Pending Validation"
+msgstr "Validacion pendiente"
+
+#. module: wire_transfer_payment_flow
+msgid "Partially Paid"
+msgstr "Pago parcial"
+
+#. module: wire_transfer_payment_flow
+msgid "Paid"
+msgstr "Pagado"
+
+#. module: wire_transfer_payment_flow
+msgid "Overpayment Review"
+msgstr "Revision de sobrepago"

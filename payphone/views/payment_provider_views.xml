@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <record id="payment_provider_form_payphone" model="ir.ui.view">
+        <field name="name">payment.provider.form.payphone</field>
+        <field name="model">payment.provider</field>
+        <field name="inherit_id" ref="payment.payment_provider_form"/>
+        <field name="arch" type="xml">
+            <group name="provider_credentials" position="inside">
+                <group invisible="code != 'payphone'">
+                    <field name="payphone_api_token"
+                           password="True"
+                           string="API Token"/>
+                    <field name="payphone_store_id"
+                           string="Store ID"/>
+                    <field name="payphone_fee_percentage"
+                           string="Fee (%)"/>
+                    <field name="payphone_fee_product_id"/>
+                </group>
+            </group>
+        </field>
+    </record>
+
+</odoo>

@@ -1,0 +1,85 @@
+<odoo>
+  <data>
+    <record id="action_entities_registration" model="ir.actions.act_window">
+      <field name="name">Empresas</field>
+      <field name="res_model">sci_companies_management.entity</field>
+      <field name="view_mode">list,form</field>
+    </record>
+
+    <record id="action_entity_members" model="ir.actions.act_window">
+      <field name="name">Miembros</field>
+      <field name="res_model">sci_companies_management.member</field>
+      <field name="view_mode">list,form</field>
+    </record>
+
+    <record id="action_resident_agents" model="ir.actions.act_window">
+      <field name="name">Agentes Residentes</field>
+      <field name="res_model">sci_companies_management.resident.agent</field>
+      <field name="view_mode">list,form</field>
+    </record>
+
+    <record id="action_activity_codes" model="ir.actions.act_window">
+      <field name="name">Códigos de Actividad</field>
+      <field name="res_model">sci_companies_management.activity.code</field>
+      <field name="view_mode">list,form</field>
+    </record>
+
+    <record id="action_structures" model="ir.actions.act_window">
+      <field name="name">Estructuras</field>
+      <field name="res_model">sci_companies_management.business.structure</field>
+      <field name="view_mode">list,form</field>
+    </record>
+
+    <record id="action_roles" model="ir.actions.act_window">
+      <field name="name">Roles</field>
+      <field name="res_model">sci_companies_management.role</field>
+      <field name="view_mode">list,form</field>
+    </record>
+
+    <menuitem id="menu_entities_registration_root"
+      name="Gestion de empresas"
+      sequence="10"
+      web_icon="sci_companies_management,static/description/icon.png" />
+
+    <menuitem id="menu_entities_registration_action"
+      name="Empresas"
+      parent="menu_entities_registration_root"
+      action="action_entities_registration"
+      sequence="10" />
+
+    <menuitem id="menu_entity_members"
+      name="Miembros"
+      parent="menu_entities_registration_root"
+      action="action_entity_members"
+      sequence="10" />
+
+    <menuitem id="menu_entities_configuration"
+      name="Configuración"
+      parent="menu_entities_registration_root"
+      sequence="100" />
+
+    <menuitem id="menu_resident_agents"
+      name="Agentes Residentes"
+      parent="menu_entities_configuration"
+      action="action_resident_agents"
+      sequence="10" />
+
+    <menuitem id="menu_activity_codes"
+      name="Códigos de Actividad"
+      parent="menu_entities_configuration"
+      action="action_activity_codes"
+      sequence="20" />
+
+    <menuitem id="menu_structures"
+      name="Estructuras"
+      parent="menu_entities_configuration"
+      action="action_structures"
+      sequence="30" />
+
+    <menuitem id="menu_roles"
+      name="Roles"
+      parent="menu_entities_configuration"
+      action="action_roles"
+      sequence="40" />
+  </data>
+</odoo>

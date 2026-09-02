@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="product_category_form_view_sci_service" model="ir.ui.view">
+        <field name="name">product.category.form.sci.service.assignment</field>
+        <field name="model">product.category</field>
+        <field name="inherit_id" ref="product.product_category_form_view"/>
+        <field name="arch" type="xml">
+            <xpath expr="//group[@name='first']" position="after">
+                <group string="Asignacion de servicio" name="sci_service_assignment">
+                    <group>
+                        <field name="sci_task_user_id"/>
+                        <field name="sci_task_role_id"/>
+                    </group>
+                    <group>
+                        <field name="sci_estimated_hours"/>
+                        <field name="sci_deadline_days"/>
+                    </group>
+                </group>
+            </xpath>
+        </field>
+    </record>
+</odoo>

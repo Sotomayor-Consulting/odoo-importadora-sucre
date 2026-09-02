@@ -1,0 +1,148 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <record id="commission_line_view_list" model="ir.ui.view">
+        <field name="name">commission.line.list</field>
+        <field name="model">commission.line</field>
+        <field name="arch" type="xml">
+            <list string="Lineas de comision">
+                <field name="sheet_id"/>
+                <field name="employee_id"/>
+                <field name="team_id"/>
+                <field name="source"/>
+                <field name="base_amount" sum="Total" optional="show"/>
+                <field name="commission_amount" sum="Total"/>
+                <field name="base_salary_deduction" optional="hide"/>
+                <field name="net_amount" sum="Total"/>
+                <field name="detail_count" string="Detalle"/>
+                <field name="sheet_state" widget="badge"/>
+                <field name="currency_id" column_invisible="1"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="commission_line_view_form" model="ir.ui.view">
+        <field name="name">commission.line.form</field>
+        <field name="model">commission.line</field>
+        <field name="arch" type="xml">
+            <form string="Linea de comision">
+                <sheet>
+                    <div class="oe_button_box" name="button_box">
+                        <button name="action_open_detail_lines" type="object" class="oe_stat_button" icon="fa-file-text-o">
+                            <field name="detail_count" widget="statinfo" string="Detalle"/>
+                        </button>
+                    </div>
+                    <group>
+                        <group>
+                            <field name="sheet_id"/>
+                            <field name="employee_id"/>
+                            <field name="team_id"/>
+                            <field name="source"/>
+                        </group>
+                        <group>
+                            <field name="company_id" groups="base.group_multi_company"/>
+                            <field name="currency_id" invisible="1"/>
+                            <field name="user_id" invisible="1"/>
+                            <field name="sheet_state"/>
+                            <field name="date_from"/>
+                            <field name="date_to"/>
+                        </group>
+                    </group>
+                    <group string="Bases y montos">
+                        <group>
+                            <field name="base_revenue"/>
+                            <field name="base_cost"/>
+                            <field name="base_margin"/>
+                            <field name="base_amount"/>
+                        </group>
+                        <group>
+                            <field name="commission_amount"/>
+                            <field name="base_salary_deduction"/>
+                            <field name="net_amount" class="oe_subtotal_footer_separator"/>
+                        </group>
+                    </group>
+                    <notebook>
+                        <page string="Detalle" name="detail">
+                            <field name="detail_line_ids" readonly="1">
+                                <list>
+                                    <field name="date"/>
+                                    <field name="order_date" optional="show"/>
+                                    <field name="rule_type" optional="show"/>
+                                    <field name="source"/>
+                                    <field name="product_id" optional="show"/>
+                                    <field name="quantity" optional="show"/>
+                                    <field name="sale_order_id" optional="show"/>
+                                    <field name="invoice_id" optional="hide"/>
+                                    <field name="bank_statement_line_id" optional="hide"/>
+                                    <field name="payment_transaction_id" optional="hide"/>
+                                    <field name="project_id" optional="hide"/>
+                                    <field name="task_state" optional="hide"/>
+                                    <field name="base_amount"/>
+                                    <field name="rate" optional="show"/>
+                                    <field name="commission_amount" sum="Total"/>
+                                    <field name="currency_id" column_invisible="1"/>
+                                </list>
+                            </field>
+                        </page>
+                        <page string="Notas" name="notes">
+                            <field name="notes" nolabel="1"/>
+                        </page>
+                    </notebook>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <record id="commission_line_view_pivot" model="ir.ui.view">
+        <field name="name">commission.line.pivot</field>
+        <field name="model">commission.line</field>
+        <field name="arch" type="xml">
+            <pivot string="Comisiones">
+                <field name="employee_id" type="row"/>
+                <field name="team_id" type="col"/>
+                <field name="net_amount" type="measure"/>
+                <field name="commission_amount" type="measure"/>
+            </pivot>
+        </field>
+    </record>
+
+    <record id="commission_line_view_search" model="ir.ui.view">
+        <field name="name">commission.line.search</field>
+        <field name="model">commission.line</field>
+        <field name="arch" type="xml">
+            <search>
+                <field name="employee_id"/>
+                <field name="sheet_id"/>
+                <field name="team_id"/>
+                <filter string="Mis comisiones" name="mine" domain="[('user_id', '=', uid)]"/>
+                <separator/>
+                <filter string="Equipo CRM" name="src_team" domain="[('source','=','team')]"/>
+                <filter string="Roles por producto" name="src_role" domain="[('source','=','product_role')]"/>
+                <filter string="Ajustes manuales" name="src_manual" domain="[('source','=','manual')]"/>
+                <separator/>
+                <group>
+                    <filter string="Empleado" name="group_employee" context="{'group_by':'employee_id'}"/>
+                    <filter string="Equipo" name="group_team" context="{'group_by':'team_id'}"/>
+                    <filter string="Hoja" name="group_sheet" context="{'group_by':'sheet_id'}"/>
+                    <filter string="Fuente" name="group_source" context="{'group_by':'source'}"/>
+                </group>
+            </search>
+        </field>
+    </record>
+
+    <record id="action_commission_line_mine" model="ir.actions.act_window">
+        <field name="name">Mis comisiones</field>
+        <field name="res_model">commission.line</field>
+        <field name="view_mode">list,pivot,form</field>
+        <field name="search_view_id" ref="commission_line_view_search"/>
+        <field name="context">{'search_default_mine': 1, 'search_default_group_sheet': 1}</field>
+    </record>
+
+    <record id="action_commission_line_all" model="ir.actions.act_window">
+        <field name="name">Analisis de lineas</field>
+        <field name="res_model">commission.line</field>
+        <field name="view_mode">list,pivot,form</field>
+        <field name="search_view_id" ref="commission_line_view_search"/>
+    </record>
+
+</odoo>

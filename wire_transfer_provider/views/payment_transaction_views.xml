@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <record id="payment_transaction_form_wire_transfer_provider" model="ir.ui.view">
+        <field name="name">payment.transaction.form.wire.transfer.provider</field>
+        <field name="model">payment.transaction</field>
+        <field name="inherit_id" ref="payment.payment_transaction_form"/>
+        <field name="arch" type="xml">
+            <xpath expr="//field[@name='state_message']" position="after">
+                <group string="Transferencia bancaria" invisible="provider_code != 'wire_transfer_provider'">
+                    <field name="wire_reference"/>
+                    <field name="wire_receipt_filename" invisible="1"/>
+                    <field name="wire_receipt_mimetype" readonly="1"/>
+                    <field name="wire_receipt_file" filename="wire_receipt_filename"/>
+                </group>
+            </xpath>
+        </field>
+    </record>
+
+</odoo>

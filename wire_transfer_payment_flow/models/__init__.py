@@ -1,0 +1,5 @@
+from . import res_partner
+from . import payment_transaction
+from . import account_move
+from . import account_move_line
+from . import sale_order

@@ -1,0 +1,74 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="view_referral_commission_plan_form" model="ir.ui.view">
+        <field name="name">referral.commission.plan.form</field>
+        <field name="model">referral.commission.plan</field>
+        <field name="arch" type="xml">
+            <form string="Plan de comision de referidos">
+                <sheet>
+                    <widget name="web_ribbon" title="Archivado" bg_color="text-bg-danger"
+                            invisible="active"/>
+                    <div class="oe_title">
+                        <label for="name"/>
+                        <h1><field name="name" placeholder="e.g. Programa SCI Referidos"/></h1>
+                    </div>
+                    <group>
+                        <field name="active" invisible="1"/>
+                        <field name="company_id" groups="base.group_multi_company"/>
+                        <field name="commission_product_id"/>
+                    </group>
+                    <notebook>
+                        <page string="Reglas de tasa" name="rules">
+                            <field name="rule_ids">
+                                <list editable="bottom">
+                                    <field name="sequence" widget="handle"/>
+                                    <field name="currency_id" column_invisible="1"/>
+                                    <field name="category_id"/>
+                                    <field name="product_id"/>
+                                    <field name="commission_type"/>
+                                    <field name="rate"
+                                           invisible="commission_type != 'percentage'"/>
+                                    <field name="fixed_amount"
+                                           invisible="commission_type != 'fixed'"/>
+                                    <field name="max_commission"/>
+                                </list>
+                            </field>
+                        </page>
+                    </notebook>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <record id="view_referral_commission_plan_list" model="ir.ui.view">
+        <field name="name">referral.commission.plan.list</field>
+        <field name="model">referral.commission.plan</field>
+        <field name="arch" type="xml">
+            <list string="Planes de comision de referidos">
+                <field name="name"/>
+                <field name="company_id" groups="base.group_multi_company"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="action_referral_commission_plan" model="ir.actions.act_window">
+        <field name="name">Comisiones de referidos</field>
+        <field name="res_model">referral.commission.plan</field>
+        <field name="view_mode">list,form</field>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">
+                Crea un plan de comision de referidos
+            </p><p>
+                Define reglas de tasa por categoria o producto (p. ej. 15% incorporacion,
+                5% el resto). La regla mas especifica (producto, luego categoria mas
+                profunda) prevalece.
+            </p>
+        </field>
+    </record>
+
+    <menuitem id="menu_referral_commission_plan"
+              name="Planes de comision"
+              parent="menu_referral_root"
+              action="action_referral_commission_plan"
+              sequence="10"/>
+</odoo>

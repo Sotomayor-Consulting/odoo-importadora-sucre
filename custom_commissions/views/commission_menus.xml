@@ -1,0 +1,60 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <menuitem
+        id="menu_commission_root"
+        name="Comisiones"
+        sequence="22"
+        groups="custom_commissions.group_commission_user"/>
+
+    <menuitem
+        id="menu_commission_sheets"
+        name="Hojas"
+        parent="menu_commission_root"
+        action="action_commission_sheet"
+        sequence="10"
+        groups="custom_commissions.group_commission_manager"/>
+
+    <menuitem
+        id="menu_commission_mine"
+        name="Mis comisiones"
+        parent="menu_commission_root"
+        action="action_commission_line_mine"
+        sequence="20"/>
+
+    <menuitem
+        id="menu_commission_analysis"
+        name="Analisis"
+        parent="menu_commission_root"
+        sequence="30"
+        groups="custom_commissions.group_commission_manager"/>
+
+    <menuitem
+        id="menu_commission_lines_all"
+        name="Lineas"
+        parent="menu_commission_analysis"
+        action="action_commission_line_all"
+        sequence="10"/>
+
+    <menuitem
+        id="menu_commission_detail_lines"
+        name="Lineas de detalle"
+        parent="menu_commission_analysis"
+        action="action_commission_detail_line"
+        sequence="20"/>
+
+    <menuitem
+        id="menu_commission_config"
+        name="Configuracion"
+        parent="menu_commission_root"
+        sequence="100"
+        groups="custom_commissions.group_commission_manager"/>
+
+    <menuitem
+        id="menu_commission_rate_rule"
+        name="Reglas de comision"
+        parent="menu_commission_config"
+        action="action_commission_rate_rule"
+        sequence="10"/>
+
+</odoo>

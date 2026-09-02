@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <template id="payment_method_stripe_fee_dataset" inherit_id="payment.method_form">
+        <xpath expr="//input[@name='o_payment_radio']" position="attributes">
+            <attribute name="t-att-data-stripe-fee-percentage">provider_sudo.stripe_fee_percentage
+                if provider_sudo.code == 'stripe' else 0</attribute>
+        </xpath>
+        <xpath expr="//label[hasclass('o_payment_option_label')]" position="after">
+            <t t-if="provider_sudo.code == 'stripe' and provider_sudo.stripe_fee_percentage > 0">
+                <span class="badge text-bg-primary ms-2"> +<t
+                        t-out="provider_sudo.stripe_fee_percentage" />% Fee </span>
+            </t>
+        </xpath>
+    </template>
+
+    <template id="payment_form_stripe_fee_warning" inherit_id="payment.form">
+        <xpath expr="//form[@id='o_payment_form']" position="before">
+            <t t-set="stripe_fee_title" t-value="'Recargo por procesamiento con Stripe'" />
+
+            <div id="stripe-fee-warning"
+                class="alert alert-info d-none" role="alert">
+                <div class="d-flex align-items-center gap-2 mb-1">
+                    <i class="fa fa-info-circle" />
+                    <strong t-out="stripe_fee_title" />
+                </div>
+                <div class="small">
+                    <span>Este metodo agrega un valor adicional para el procesamiento de pago seguro por Stripe. </span>
+                </div>
+            </div>
+        </xpath>
+    </template>
+</odoo>

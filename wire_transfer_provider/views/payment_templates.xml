@@ -1,0 +1,238 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <template id="wire_transfer_provider_token_form" inherit_id="payment.token_form">
+        <xpath expr="//t[@t-set='hide_secured_by']" position="attributes">
+            <attribute name="t-value" separator=" "
+                add="or provider_sudo.code == 'wire_transfer_provider'" />
+        </xpath>
+    </template>
+
+    <template id="wire_transfer_provider_method_form" inherit_id="payment.method_form">
+        <xpath expr="//t[@t-set='hide_secured_by']" position="attributes">
+            <attribute name="t-value" separator=" "
+                add="or provider_sudo.code == 'wire_transfer_provider'" />
+        </xpath>
+        <xpath expr="//div[@name='o_payment_inline_form']" position="inside">
+            <t t-if="provider_sudo.code == 'wire_transfer_provider'">
+                <div data-wire-inline-root="1" t-att-data-wire-provider-id="provider_sudo.id"
+                    data-wire-receipt-required="1"
+                    t-att-data-wire-max-size-mb="provider_sudo.wire_receipt_max_size_mb or 2">
+                    <t t-set="bank_account" t-value="provider_sudo.wire_company_bank_id" />
+
+                    <!-- Bloque de datos bancarios: Fondo sutil, sin sombras, integrado al diseño -->
+                    <div class="bg-light rounded-3 p-3 mb-4">
+                        <div
+                            class="d-flex justify-content-between align-items-center border-bottom pb-2 mb-2">
+                            <span class="text-muted">Banco</span>
+                            <span class="d-flex align-items-center">
+                                <img t-if="bank_account.bank_id.wire_logo"
+                                    t-att-src="image_data_uri(bank_account.bank_id.wire_logo)"
+                                    t-att-alt="bank_account.bank_id.name"
+                                    class="me-2 rounded"
+                                    style="height: 24px; width: auto; object-fit: contain;" />
+                                <strong class="text-dark text-end" t-out="bank_account.bank_id.name" />
+                            </span>
+                        </div>
+                        <div t-if="bank_account.clearing_number"
+                            class="d-flex justify-content-between align-items-center border-bottom pb-2 mb-2">
+                            <span class="text-muted">ABA / Número de ruta</span>
+                            <strong class="text-dark text-end" t-out="bank_account.clearing_number" />
+                        </div>
+                        <div t-if="bank_account.wire_account_type"
+                            class="d-flex justify-content-between align-items-center border-bottom pb-2 mb-2">
+                            <span class="text-muted">Tipo de cuenta</span>
+                            <strong class="text-dark text-end">
+                                <t t-if="bank_account.wire_account_type == 'savings'">Ahorros</t>
+                                <t t-elif="bank_account.wire_account_type == 'checking'">Corriente</t>
+                            </strong>
+                        </div>
+                        <div
+                            class="d-flex justify-content-between align-items-center border-bottom pb-2 mb-2">
+                            <span class="text-muted">Número de cuenta</span>
+                            <strong class="text-dark text-end" t-out="bank_account.acc_number" />
+                        </div>
+                        <div t-if="bank_account.bank_id.street or bank_account.bank_id.city or bank_account.bank_id.country"
+                            class="d-flex justify-content-between align-items-center border-bottom pb-2 mb-2">
+                            <span class="text-muted pe-3">Dirección del banco</span>
+                            <strong class="text-dark text-end"
+                                t-out="', '.join([p for p in [bank_account.bank_id.street, bank_account.bank_id.street2, bank_account.bank_id.city, bank_account.bank_id.state.name, bank_account.bank_id.zip, bank_account.bank_id.country.name] if p])" />
+                        </div>
+                        <div
+                            t-attf-class="d-flex justify-content-between align-items-center {{ 'border-bottom pb-2 mb-2' if bank_account.wire_beneficiary_vat else '' }}">
+                            <span class="text-muted pe-3">Beneficiario</span>
+                            <strong class="text-dark text-end"
+                                t-out="bank_account.acc_holder_name or bank_account.partner_id.name or provider_sudo.company_id.partner_id.name" />
+                        </div>
+                        <div t-if="bank_account.wire_beneficiary_vat"
+                            class="d-flex justify-content-between align-items-center">
+                            <span class="text-muted">Identificación</span>
+                            <strong class="text-dark text-end"
+                                t-out="bank_account.wire_beneficiary_vat" />
+                        </div>
+                    </div>
+
+                    <!-- Sección de carga de comprobante y referencia -->
+                    <div class="row g-4">
+                        <div class="col-12">
+                            <label class="form-label fw-bold text-dark mb-2">Comprobante</label>
+                            <div class="border rounded-3 p-4 text-center bg-white"
+                                data-wire-dropzone="1" role="button" tabindex="0"
+                                aria-label="Subir comprobante de transferencia">
+                                <input type="file" class="d-none" name="wire_receipt_file"
+                                    data-wire-receipt-file="1" accept=".pdf,.png,.jpg,.jpeg"
+                                    required="required" />
+                                <i class="fa fa-cloud-upload fa-2x text-secondary mb-3" />
+                                <p class="mb-1 fw-bold text-dark">Arrastra tu comprobante aquí</p>
+                                <p class="mb-3 text-muted small">o haz clic para seleccionar un
+                                    archivo</p>
+                                <!-- Odoo adoptará el color de tu tema (morado) al usar
+                                btn-outline-primary -->
+                                <button type="button" class="btn btn-outline-primary btn-sm px-3"
+                                    data-wire-file-trigger="1">
+                                    Seleccionar archivo
+                                </button>
+                            </div>
+
+                            <!-- Previsualización del archivo cargado (oculto por defecto) -->
+                            <div
+                                class="d-none mt-2 border rounded-3 p-2 bg-white d-flex align-items-center justify-content-between"
+                                data-wire-selected-file="1">
+                                <a
+                                    class="d-flex align-items-center overflow-hidden text-reset text-decoration-none flex-grow-1"
+                                    href="#" target="_blank" rel="noopener"
+                                    data-wire-local-preview="1"
+                                    title="Previsualizar comprobante">
+                                    <span class="o_file_image o_image me-2"
+                                        data-wire-selected-image="1" title="comprobante"
+                                        data-mimetype="application/octet-stream" />
+                                    <span class="o_file_name text-truncate fw-semibold"
+                                        data-wire-selected-name="1">comprobante</span>
+                                </a>
+                                <button type="button"
+                                    class="btn btn-link link-danger p-1 ms-2 d-flex align-items-center"
+                                    data-wire-clear-file="1" title="Quitar archivo"
+                                    aria-label="Quitar archivo">
+                                    <i class="fa fa-trash-o" />
+                                </button>
+                            </div>
+
+                            <div class="form-text text-muted mt-2 small"> PDF, PNG, JPG o JPEG.
+                                Máximo <t t-out="provider_sudo.wire_receipt_max_size_mb or 2" /> MB. </div>
+                        </div>
+
+                        <div class="col-12">
+                            <label class="form-label fw-bold text-dark mb-2">Referencia del
+                                comprobante</label>
+                            <input type="text" class="form-control" name="wire_reference"
+                                data-wire-reference="1" required="required" />
+                        </div>
+                    </div>
+                </div>
+            </t>
+        </xpath>
+    </template>
+
+    <template id="wire_transfer_provider_redirect_form">
+        <form t-att-action="api_url" method="post">
+            <input type="hidden" name="reference" t-att-value="reference" />
+        </form>
+    </template>
+
+    <template id="wire_transfer_provider_state_header" inherit_id="payment.state_header">
+        <xpath expr="//div[@name='o_payment_status_alert']" position="after">
+            <t
+                t-if="tx.provider_code == 'wire_transfer_provider' and tx.state in ('draft', 'pending')">
+                <section class="mt-3 mb-3">
+                    <div class="border rounded-3 bg-white p-4">
+                        <h6 class="mb-1">Comprobante de transferencia</h6>
+                        <t t-if="request.session.get('wire_transfer_flash_message')">
+                            <div class="alert mb-3"
+                                t-att-class="'alert-danger' if request.session.get('wire_transfer_flash_level') == 'error' else 'alert-success'"
+                                role="alert">
+                                <t t-out="request.session.get('wire_transfer_flash_message')" />
+                            </div>
+                            <t t-set="_wire_flash_level"
+                                t-value="request.session.pop('wire_transfer_flash_level', False)" />
+                            <t t-set="_wire_flash_message"
+                                t-value="request.session.pop('wire_transfer_flash_message', False)" />
+                        </t>
+                        <t t-if="tx.wire_receipt_file">
+                            <t t-set="receipt_query"
+                                t-value="'order_id=%s&amp;order_access_token=%s' % (tx.sale_order_ids[:1].id, tx.sale_order_ids[:1].access_token or '') if tx.sale_order_ids else ('invoice_id=%s&amp;invoice_access_token=%s' % (tx.invoice_ids[:1].id, tx.invoice_ids[:1].access_token or '') if tx.invoice_ids else '')" />
+                            <div class="d-flex align-items-stretch w-100">
+                                <t t-set="receipt_mimetype"
+                                    t-value="tx.wire_receipt_mimetype or 'application/octet-stream'" />
+                                <t t-set="is_pdf" t-value="receipt_mimetype == 'application/pdf'" />
+                                <t t-set="is_image" t-value="receipt_mimetype.startswith('image/')" />
+                                <div
+                                    class="d-flex flex-grow-1 align-items-center alert border py-2 px-2 m-0 rounded-end-0">
+                                    <span class="o_file_image d-flex o_image user-select-none"
+                                        t-att-title="tx.wire_receipt_filename or 'comprobante'"
+                                        t-att-data-mimetype="receipt_mimetype">
+                                        <a class="w-100"
+                                            target="_blank"
+                                            t-att-href="'/payment/wire_transfer_provider/receipt/%s?%s&amp;download=false' % (tx.id, receipt_query) if receipt_query else '/payment/wire_transfer_provider/receipt/%s?download=false' % tx.id" />
+                                    </span>
+                                    <span
+                                        class="mx-0 row overflow-hidden">
+                                        <span>
+                                            <p class="m-0">
+                                                <strong>Referencia:</strong>
+                                                <span t-out="tx.wire_reference or '-'" />
+                                            </p>
+                                        </span>
+                                        <span class="o_file_name text-truncate"
+                                            t-out="tx.wire_receipt_filename or 'comprobante'" />
+                                    </span>
+
+
+                                </div>
+                                <a
+                                    class="btn btn-primary rounded-start-0 d-flex align-items-center justify-content-center px-4"
+                                    title="Descargar"
+                                    aria-label="Descargar"
+                                    t-att-href="'/payment/wire_transfer_provider/receipt/%s?%s&amp;download=true' % (tx.id, receipt_query) if receipt_query else '/payment/wire_transfer_provider/receipt/%s?download=true' % tx.id">
+                                    <i class="fa fa-download" />
+                                </a>
+                            </div>
+                        </t>
+
+                        <form t-if="not tx.wire_receipt_file"
+                            action="/payment/wire_transfer_provider/upload_receipt"
+                            method="post"
+                            enctype="multipart/form-data"
+                            class="row g-3 align-items-end mt-1">
+                            <input type="hidden" name="csrf_token"
+                                t-att-value="request.csrf_token()" />
+                            <input type="hidden" name="reference" t-att-value="tx.reference" />
+                            <input t-if="tx.sale_order_ids" type="hidden" name="order_id"
+                                t-att-value="tx.sale_order_ids[:1].id" />
+                            <input t-if="tx.sale_order_ids" type="hidden" name="order_access_token"
+                                t-att-value="tx.sale_order_ids[:1].access_token or ''" />
+                            <input t-if="tx.invoice_ids" type="hidden" name="invoice_id"
+                                t-att-value="tx.invoice_ids[:1].id" />
+                            <input t-if="tx.invoice_ids" type="hidden" name="invoice_access_token"
+                                t-att-value="tx.invoice_ids[:1].access_token or ''" />
+                            <div class="col-12 col-md-5">
+                                <label class="form-label">Referencia del comprobante</label>
+                                <input class="form-control" type="text" name="wire_reference"
+                                    required="required" />
+                            </div>
+                            <div class="col-12 col-md-5">
+                                <label class="form-label">Comprobante</label>
+                                <input class="form-control" type="file" name="wire_receipt_file"
+                                    accept=".pdf,.png,.jpg,.jpeg" required="required" />
+                            </div>
+                            <div class="col-12 col-md-2">
+                                <button type="submit" class="btn btn-primary w-100">Guardar
+                                    comprobante</button>
+                            </div>
+                        </form>
+                    </div>
+                </section>
+            </t>
+        </xpath>
+    </template>
+
+</odoo>

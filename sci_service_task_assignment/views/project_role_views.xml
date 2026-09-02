@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="project_role_view_form_sci" model="ir.ui.view">
+        <field name="name">project.role.form.sci</field>
+        <field name="model">project.role</field>
+        <field name="inherit_id" ref="project.project_role_view_form"/>
+        <field name="arch" type="xml">
+            <xpath expr="//field[@name='name']" position="after">
+                <field name="sci_user_id"/>
+            </xpath>
+        </field>
+    </record>
+
+    <record id="project_role_view_list_sci" model="ir.ui.view">
+        <field name="name">project.role.list.sci</field>
+        <field name="model">project.role</field>
+        <field name="inherit_id" ref="project.project_role_view_list"/>
+        <field name="arch" type="xml">
+            <xpath expr="//field[@name='name']" position="after">
+                <field name="sci_user_id" optional="show"/>
+            </xpath>
+        </field>
+    </record>
+</odoo>

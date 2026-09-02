@@ -1,0 +1,19 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+.pytest_cache/
+
+# Odoo / runtime
+*.log
+odoo.toml
+
+# Editores / herramientas
+.vscode
+.codex
+.idea/
+
+# Sistema operativo
+.DS_Store
+Thumbs.db
