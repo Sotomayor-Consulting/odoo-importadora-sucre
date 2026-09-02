@@ -1,0 +1,19 @@
+# Docker NO respeta .gitignore. Sin este archivo, el tarball de 427 MB y el
+# historial de git se enviarian al daemon en cada build.
+odoo_*.tar.gz
+odoo-*.tar.gz
+odoo-19.0*/
+enterprise/
+odoo/
+
+.git
+.gitignore
+.env
+docker-compose*.yml
+docs/
+
+__pycache__/
+*.py[cod]
+*.log
+.vscode/
+.idea/

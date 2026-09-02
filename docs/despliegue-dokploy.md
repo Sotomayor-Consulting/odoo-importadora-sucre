@@ -14,8 +14,11 @@ El repositorio **no contiene el codigo fuente de Odoo**. Solo lleva lo que
 cambia a menudo:
 
 ```
-custom_addons/      modulos propios
+custom_addons/      modulos propios de este cliente
+vendor_addons/      librería compartida de Sotomayor Consulting (git subtree)
 docs/               esta documentacion
+.dockerignore       Docker NO respeta .gitignore: sin esto el contexto de
+                    build pasaria de 2 MB a 410 MB
 Dockerfile          construye la imagen, descarga el fuente desde R2
 docker-compose.yml  servicios odoo + postgres
 odoo.conf           configuracion (sin credenciales)
@@ -78,6 +81,32 @@ aws s3 presign s3://TU_BUCKET/odoo_19.0+e.20260902.tar.gz \
 
 > **Nunca** imprimas el secreto dentro de un `RUN` (`echo`, `cat`): apareceria
 > en los logs de build de Dokploy.
+
+---
+
+## 2.bis Redes
+
+El stack usa dos redes, y la separacion es deliberada:
+
+| Red | Quien la crea | Quien la usa |
+|---|---|---|
+| `internal` | Compose | `odoo` y `db` |
+| `dokploy-network` | **Dokploy** (externa) | solo `odoo` |
+
+`dokploy-network` esta declarada como `external: true`: Compose **no** la crea y
+falla el `up` si no existe. En el servidor la crea Dokploy para su proxy. En
+local hay que crearla a mano:
+
+```bash
+docker network create dokploy-network
+```
+
+**La base de datos no esta en la red compartida.** Solo `odoo` la alcanza, y
+solo `odoo` es alcanzable por el proxy. Postgres nunca queda expuesto a los
+demas servicios que Dokploy tenga en ese host.
+
+Nota: `docker compose config` **no** detecta que la red externa falte; el error
+aparece al hacer `up`.
 
 ---
 

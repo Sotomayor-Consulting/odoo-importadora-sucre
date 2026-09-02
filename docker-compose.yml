@@ -12,6 +12,10 @@ services:
       interval: 10s
       timeout: 5s
       retries: 10
+    # Solo en la red interna: la base NUNCA se expone a la red compartida
+    # del proxy. Es la razon de separar las dos redes.
+    networks:
+      - internal
     restart: unless-stopped
 
   odoo:
@@ -23,8 +27,8 @@ services:
       db:
         condition: service_healthy
     environment:
-      # Consumidas por el entrypoint oficial para construir los argumentos
-      # de conexion. Ver el comentario en odoo.conf.
+      # Consumidas por entrypoint.sh para construir los argumentos de
+      # conexion. Ver el comentario en odoo.conf.
       HOST: db
       PORT: 5432
       USER: ${POSTGRES_USER}
@@ -36,6 +40,9 @@ services:
     expose:
       - "8069"   # HTTP
       - "8072"   # websockets (chat, notificaciones en vivo)
+    networks:
+      - internal          # para hablar con la base
+      - dokploy-network   # para que el proxy lo alcance
     restart: unless-stopped
 
 # La URL prefirmada de R2 se toma de la variable R2_URL que define Dokploy.
@@ -45,6 +52,17 @@ secrets:
   r2_url:
     environment: R2_URL
 
+networks:
+  # Red privada del stack. La crea Compose.
+  internal:
+
+  # Red compartida donde vive el proxy (Traefik) de Dokploy. Es "external":
+  # Compose NO la crea, debe existir de antes. En el servidor la crea Dokploy;
+  # en local se crea a mano:
+  #   docker network create dokploy-network
+  dokploy-network:
+    external: true
+
 volumes:
-  db-data: 
-  odoo-data: 
+  db-data:
+  odoo-data:
