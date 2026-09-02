@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="sale_order_form_wpf" model="ir.ui.view">
+        <field name="name">sale.order.form.wpf</field>
+        <field name="model">sale.order</field>
+        <field name="inherit_id" ref="sale.view_order_form"/>
+        <field name="arch" type="xml">
+            <xpath expr="//header" position="inside">
+                <button name="action_wpf_create_project"
+                        type="object"
+                        string="Crear proyecto de servicio"
+                        class="btn-secondary"
+                        invisible="state not in ('sale', 'done') or project_ids"/>
+            </xpath>
+            <xpath expr="//field[@name='payment_term_id']" position="after">
+                <field name="wpf_project_creation_policy"/>
+                <field name="wpf_project_creation_policy_effective" readonly="1"/>
+                <field name="wpf_project_created_by_flow" readonly="1"/>
+            </xpath>
+        </field>
+    </record>
+</odoo>

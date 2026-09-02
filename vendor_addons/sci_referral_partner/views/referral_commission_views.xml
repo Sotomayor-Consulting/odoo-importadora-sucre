@@ -1,0 +1,87 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="view_referral_commission_list" model="ir.ui.view">
+        <field name="name">referral.commission.list</field>
+        <field name="model">referral.commission</field>
+        <field name="arch" type="xml">
+            <list string="Comisiones de referidos" create="0">
+                <field name="date"/>
+                <field name="partner_id"/>
+                <field name="customer_id"/>
+                <field name="invoice_id"/>
+                <field name="product_id" optional="show"/>
+                <field name="currency_id" column_invisible="1"/>
+                <field name="base_amount" optional="show"/>
+                <field name="rate" optional="hide"/>
+                <field name="commission_amount" sum="Total"/>
+                <field name="is_clawback" optional="hide"/>
+                <field name="state" widget="badge"
+                       decoration-info="state == 'draft'"
+                       decoration-success="state == 'paid'"/>
+                <field name="company_id" groups="base.group_multi_company" optional="hide"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="view_referral_commission_form" model="ir.ui.view">
+        <field name="name">referral.commission.form</field>
+        <field name="model">referral.commission</field>
+        <field name="arch" type="xml">
+            <form string="Comision de referido">
+                <sheet>
+                    <group>
+                        <group>
+                            <field name="partner_id"/>
+                            <field name="customer_id"/>
+                            <field name="product_id"/>
+                            <field name="date"/>
+                            <field name="state"/>
+                        </group>
+                        <group>
+                            <field name="currency_id" invisible="1"/>
+                            <field name="invoice_id"/>
+                            <field name="base_amount"/>
+                            <field name="rate"/>
+                            <field name="commission_amount"/>
+                            <field name="is_clawback"/>
+                        </group>
+                    </group>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <record id="view_referral_commission_search" model="ir.ui.view">
+        <field name="name">referral.commission.search</field>
+        <field name="model">referral.commission</field>
+        <field name="arch" type="xml">
+            <search>
+                <field name="partner_id"/>
+                <field name="customer_id"/>
+                <field name="invoice_id"/>
+                <filter name="draft" string="Devengadas" domain="[('state', '=', 'draft')]"/>
+                <filter name="clawback" string="Clawback" domain="[('is_clawback', '=', True)]"/>
+                <group>
+                    <filter name="group_partner" string="Partner"
+                            context="{'group_by': 'partner_id'}"/>
+                    <filter name="group_state" string="Estado"
+                            context="{'group_by': 'state'}"/>
+                </group>
+            </search>
+        </field>
+    </record>
+
+    <record id="action_referral_commission" model="ir.actions.act_window">
+        <field name="name">Comisiones devengadas</field>
+        <field name="res_model">referral.commission</field>
+        <field name="view_mode">list,form</field>
+        <field name="search_view_id" ref="view_referral_commission_search"/>
+        <field name="context">{'search_default_draft': 1, 'search_default_group_partner': 1}</field>
+    </record>
+
+    <menuitem id="menu_referral_commission"
+              name="Comisiones"
+              parent="menu_referral_root"
+              action="action_referral_commission"
+              sequence="20"/>
+</odoo>

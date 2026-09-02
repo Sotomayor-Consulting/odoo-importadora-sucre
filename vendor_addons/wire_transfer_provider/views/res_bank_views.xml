@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <record id="view_res_bank_form_wire_transfer" model="ir.ui.view">
+        <field name="name">res.bank.form.wire.transfer</field>
+        <field name="model">res.bank</field>
+        <field name="inherit_id" ref="base.view_res_bank_form"/>
+        <field name="arch" type="xml">
+            <group name="bank_details" position="before">
+                <field name="wire_logo" widget="image" class="oe_avatar"
+                    options="{'preview_image': 'wire_logo'}"/>
+            </group>
+        </field>
+    </record>
+
+</odoo>

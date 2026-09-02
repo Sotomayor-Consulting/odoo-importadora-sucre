@@ -1,0 +1,99 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="view_referral_settlement_form" model="ir.ui.view">
+        <field name="name">referral.commission.settlement.form</field>
+        <field name="model">referral.commission.settlement</field>
+        <field name="arch" type="xml">
+            <form string="Liquidacion de comisiones">
+                <header>
+                    <button name="action_generate" type="object" string="Recalcular"
+                            class="btn-primary" invisible="state != 'draft'"/>
+                    <button name="action_create_vendor_bill" type="object"
+                            string="Crear factura de proveedor" class="btn-primary"
+                            invisible="state != 'draft'"/>
+                    <button name="action_mark_paid" type="object" string="Marcar pagada"
+                            invisible="state != 'billed'"/>
+                    <button name="action_reset_to_draft" type="object"
+                            string="Volver a borrador" invisible="state == 'draft'"/>
+                    <field name="state" widget="statusbar"/>
+                </header>
+                <sheet>
+                    <div class="oe_button_box" name="button_box">
+                        <button name="action_open_vendor_bill" type="object"
+                                class="oe_stat_button" icon="fa-file-text-o"
+                                invisible="not vendor_bill_id">
+                            <div class="o_field_widget o_stat_info">
+                                <span class="o_stat_text">Factura</span>
+                            </div>
+                        </button>
+                    </div>
+                    <div class="oe_title">
+                        <h1><field name="name" readonly="1"/></h1>
+                    </div>
+                    <group>
+                        <group>
+                            <field name="partner_id" readonly="state != 'draft'"/>
+                            <field name="company_id" groups="base.group_multi_company"/>
+                            <field name="currency_id" invisible="1"/>
+                        </group>
+                        <group>
+                            <field name="date_from" readonly="state != 'draft'"/>
+                            <field name="date_to" readonly="state != 'draft'"/>
+                            <field name="payment_due_date"/>
+                            <field name="amount_total"/>
+                            <field name="vendor_bill_id" readonly="1"/>
+                        </group>
+                    </group>
+                    <notebook>
+                        <page string="Comisiones" name="lines">
+                            <field name="line_ids">
+                                <list>
+                                    <field name="date"/>
+                                    <field name="customer_id"/>
+                                    <field name="invoice_id"/>
+                                    <field name="product_id"/>
+                                    <field name="currency_id" column_invisible="1"/>
+                                    <field name="base_amount"/>
+                                    <field name="rate"/>
+                                    <field name="commission_amount" sum="Total"/>
+                                    <field name="is_clawback"/>
+                                </list>
+                            </field>
+                        </page>
+                    </notebook>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <record id="view_referral_settlement_list" model="ir.ui.view">
+        <field name="name">referral.commission.settlement.list</field>
+        <field name="model">referral.commission.settlement</field>
+        <field name="arch" type="xml">
+            <list string="Liquidaciones">
+                <field name="name"/>
+                <field name="partner_id"/>
+                <field name="date_from"/>
+                <field name="date_to"/>
+                <field name="payment_due_date"/>
+                <field name="currency_id" column_invisible="1"/>
+                <field name="amount_total" sum="Total"/>
+                <field name="state" widget="badge"
+                       decoration-info="state == 'draft'"
+                       decoration-success="state == 'paid'"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="action_referral_settlement" model="ir.actions.act_window">
+        <field name="name">Liquidaciones de referidos</field>
+        <field name="res_model">referral.commission.settlement</field>
+        <field name="view_mode">list,form</field>
+    </record>
+
+    <menuitem id="menu_referral_settlement"
+              name="Liquidacion de pagos"
+              parent="menu_referral_root"
+              action="action_referral_settlement"
+              sequence="30"/>
+</odoo>

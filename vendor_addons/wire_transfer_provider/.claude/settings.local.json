@@ -1,0 +1,10 @@
+{
+  "permissions": {
+    "allow": [
+      "Read(///wsl.localhost/Ubuntu-24.04/usr/lib/python3/dist-packages/odoo/**)",
+      "Bash(:)",
+      "Bash(python3 -c \"import odoo, os; print\\(os.path.dirname\\(odoo.__file__\\)\\)\")",
+      "Read(///wsl.localhost/Ubuntu-24.04//**)"
+    ]
+  }
+}

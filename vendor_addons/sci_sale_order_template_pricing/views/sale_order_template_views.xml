@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="sale_order_template_view_form_pricing" model="ir.ui.view">
+        <field name="name">sale.order.template.form.pricing</field>
+        <field name="model">sale.order.template</field>
+        <field name="inherit_id" ref="sale_management.sale_order_template_view_form"/>
+        <field name="arch" type="xml">
+            <!-- Habilita las opciones "Ocultar precios" / "Ocultar composicion"
+                 del menu de seccion en el editor de la plantilla. -->
+            <xpath expr="//field[@name='sale_order_template_line_ids']" position="attributes">
+                <attribute name="options">{'subsections': True, 'hide_prices': True, 'hide_composition': True}</attribute>
+            </xpath>
+
+            <!-- Campos tecnicos requeridos por el renderer de secciones. -->
+            <xpath expr="//field[@name='sale_order_template_line_ids']/list/field[@name='is_optional']" position="after">
+                <field name="collapse_prices" column_invisible="True"/>
+                <field name="collapse_composition" column_invisible="True"/>
+            </xpath>
+
+            <!-- Precio unitario editable en la linea. -->
+            <xpath expr="//field[@name='sale_order_template_line_ids']/list/field[@name='product_uom_qty']" position="after">
+                <field name="price_unit"/>
+            </xpath>
+
+            <!-- Mismo campo en el formulario emergente de la linea. -->
+            <xpath expr="//field[@name='sale_order_template_line_ids']/form/group/group" position="inside">
+                <field name="price_unit"/>
+            </xpath>
+        </field>
+    </record>
+</odoo>

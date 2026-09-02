@@ -1,0 +1,15 @@
+id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
+access_entity,entity,model_sci_companies_management_entity,base.group_user,1,1,1,1
+access_activity_code,activity_code,model_sci_companies_management_activity_code,base.group_user,1,1,1,1
+access_activity_category,activity_category,model_sci_companies_management_activity_category,base.group_user,1,1,1,1
+access_address,address,model_sci_companies_management_address,base.group_user,1,1,1,1
+access_resident_agent,resident_agent,model_sci_companies_management_resident_agent,base.group_user,1,1,1,1
+access_resident_agent_history,resident_agent_history,model_sci_companies_management_resident_agent_history,base.group_user,1,1,1,1
+access_member,member,model_sci_companies_management_member,base.group_user,1,1,1,1
+access_member_line,member_line,model_sci_companies_management_member_line,base.group_user,1,1,1,1
+access_role,role,model_sci_companies_management_role,base.group_user,1,1,1,1
+access_business_structure,business_structure,model_sci_companies_management_business_structure,base.group_user,1,1,1,1
+access_document,document,model_sci_companies_management_document,base.group_user,1,1,1,1
+access_document_type,document_type,model_sci_companies_management_document_type,base.group_user,1,1,1,1
+access_document_tag,document_tag,model_sci_companies_management_document_tag,base.group_user,1,1,1,1
+access_fincen_report,fincen_report,model_sci_companies_management_fincen_report,base.group_user,1,1,1,1

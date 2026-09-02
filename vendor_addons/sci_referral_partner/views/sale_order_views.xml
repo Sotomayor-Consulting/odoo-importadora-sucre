@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="view_order_form_referral" model="ir.ui.view">
+        <field name="name">sale.order.form.referral</field>
+        <field name="model">sale.order</field>
+        <field name="inherit_id" ref="sale.view_order_form"/>
+        <field name="arch" type="xml">
+            <xpath expr="//field[@name='payment_term_id']" position="after">
+                <field name="referral_code_entry"
+                       placeholder="Codigo del Partner"/>
+                <field name="referrer_id"/>
+            </xpath>
+        </field>
+    </record>
+</odoo>

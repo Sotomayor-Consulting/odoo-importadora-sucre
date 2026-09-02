@@ -1,0 +1,23 @@
+{
+    'name': 'Localizacion de nomina Ecuador',
+    'summary': 'Localizacion base de nomina para Ecuador',
+    'author': 'Sotomayor Consulting International',
+    'website': 'https://www.sotomayorconsulting.com',
+    'category': 'Human Resources/Payroll',
+    'version': '19.0.1.0.0',
+    'license': 'LGPL-3',
+    'depends': ['hr_payroll', 'hr_payroll_holidays'],
+    'data': [
+        'views/res_config_settings_views.xml',
+        'views/hr_contract_template_views.xml',
+        'views/hr_employee_views.xml',
+        'data/hr_rule_parameters_data.xml',
+        'data/hr_payslip_input_type_data.xml',
+        'data/hr_salary_rule_category_data.xml',
+        'data/hr_payroll_structure_type_data.xml',
+        'data/hr_payroll_structure_data.xml',
+        'data/hr_salary_rule_data.xml',
+    ],
+    'installable': True,
+    'application': False,
+}

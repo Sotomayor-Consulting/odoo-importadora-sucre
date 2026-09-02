@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="l10n_ec_rule_parameter_sbu" model="hr.rule.parameter">
+        <field name="name">Ecuador: Salario basico unificado</field>
+        <field name="code">EC_SBU</field>
+        <field name="country_id" ref="base.ec"/>
+    </record>
+    <record id="l10n_ec_rule_parameter_sbu_2026" model="hr.rule.parameter.value">
+        <field name="rule_parameter_id" ref="l10n_ec_rule_parameter_sbu"/>
+        <field name="date_from" eval="datetime(2026, 1, 1).date()"/>
+        <field name="parameter_value">470.0</field>
+    </record>
+
+    <record id="l10n_ec_rule_parameter_iess_employee_rate" model="hr.rule.parameter">
+        <field name="name">Ecuador: Porcentaje IESS trabajador</field>
+        <field name="code">EC_IESS_EMPLOYEE_RATE</field>
+        <field name="country_id" ref="base.ec"/>
+    </record>
+    <record id="l10n_ec_rule_parameter_iess_employee_rate_2026" model="hr.rule.parameter.value">
+        <field name="rule_parameter_id" ref="l10n_ec_rule_parameter_iess_employee_rate"/>
+        <field name="date_from" eval="datetime(2026, 1, 1).date()"/>
+        <field name="parameter_value">9.45</field>
+    </record>
+
+    <record id="l10n_ec_rule_parameter_iess_employer_rate" model="hr.rule.parameter">
+        <field name="name">Ecuador: Porcentaje IESS patronal</field>
+        <field name="code">EC_IESS_EMPLOYER_RATE</field>
+        <field name="country_id" ref="base.ec"/>
+    </record>
+    <record id="l10n_ec_rule_parameter_iess_employer_rate_2026" model="hr.rule.parameter.value">
+        <field name="rule_parameter_id" ref="l10n_ec_rule_parameter_iess_employer_rate"/>
+        <field name="date_from" eval="datetime(2026, 1, 1).date()"/>
+        <field name="parameter_value">11.15</field>
+    </record>
+</odoo>

@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <menuitem id="menu_referral_root"
+              name="Comision de partners"
+              parent="sale.sale_menu_root"
+              sequence="80"/>
+</odoo>

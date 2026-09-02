@@ -1,0 +1,126 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <record id="commission_rate_rule_view_list" model="ir.ui.view">
+        <field name="name">commission.rate.rule.list</field>
+        <field name="model">commission.rate.rule</field>
+        <field name="arch" type="xml">
+            <list string="Reglas de comision">
+                <field name="sequence" widget="handle"/>
+                <field name="name"/>
+                <field name="team_id"/>
+                <field name="frequency"/>
+                <field name="rule_type"/>
+                <field name="amount_basis" optional="show"/>
+                <field name="product_ids" widget="many2many_tags" optional="show"/>
+                <field name="product_category_ids" widget="many2many_tags" optional="show"/>
+                <field name="computation_type"/>
+                <field name="rate" optional="show"/>
+                <field name="fixed_amount" optional="show"/>
+                <field name="company_id" groups="base.group_multi_company" optional="hide"/>
+                <field name="active" optional="hide"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="commission_rate_rule_view_form" model="ir.ui.view">
+        <field name="name">commission.rate.rule.form</field>
+        <field name="model">commission.rate.rule</field>
+        <field name="arch" type="xml">
+            <form string="Regla de comision">
+                <sheet>
+                    <widget name="web_ribbon" title="Archivada" bg_color="text-bg-danger" invisible="active"/>
+                    <div class="oe_title">
+                        <label for="name"/>
+                        <h1><field name="name" placeholder="Ej. Ventas catch-all 5%"/></h1>
+                    </div>
+                    <group>
+                        <group string="Equipo y frecuencia">
+                            <field name="team_id"/>
+                            <field name="frequency"/>
+                            <field name="sequence"/>
+                            <field name="active" invisible="1"/>
+                            <field name="company_id" groups="base.group_multi_company"/>
+                            <field name="currency_id" invisible="1"/>
+                        </group>
+                        <group string="Tipo de regla">
+                            <field name="rule_type"/>
+                            <field name="amount_basis" invisible="rule_type in ('qty_invoiced','qty_sold','task_done','margin')"/>
+                        </group>
+                    </group>
+                    <group>
+                        <group string="Calculo">
+                            <field name="computation_type" widget="radio"/>
+                            <field name="rate" invisible="computation_type != 'percentage'"/>
+                            <field name="fixed_amount" invisible="computation_type != 'fixed'"/>
+                        </group>
+                        <group string="Vendedores del equipo">
+                            <field name="seller_user_ids" widget="many2many_tags" readonly="1"/>
+                        </group>
+                    </group>
+                    <notebook>
+                        <page string="Criterios" name="criteria">
+                            <group>
+                                <field name="product_ids" widget="many2many_tags"/>
+                                <field name="product_category_ids" widget="many2many_tags"/>
+                            </group>
+                            <p class="text-muted">
+                                <strong>Precedencia</strong> (de mas especifico a mas general):
+                                <br/>1. Regla con productos listados — gana siempre para esos productos.
+                                <br/>2. Regla con categorias — aplica si la categoria del producto
+                                (o alguna padre) esta en la lista.
+                                <br/>3. Regla <strong>sin criterios</strong> — catch-all del equipo.
+                                <br/>Dentro del mismo nivel gana la regla de menor secuencia.
+                                <br/>El motor descarta la regla si la frecuencia no coincide con el periodo de la hoja.
+                            </p>
+                        </page>
+                        <page string="Notas" name="notes">
+                            <field name="notes" nolabel="1" placeholder="Notas internas..."/>
+                        </page>
+                    </notebook>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <record id="commission_rate_rule_view_search" model="ir.ui.view">
+        <field name="name">commission.rate.rule.search</field>
+        <field name="model">commission.rate.rule</field>
+        <field name="arch" type="xml">
+            <search>
+                <field name="name"/>
+                <field name="team_id"/>
+                <field name="product_ids"/>
+                <field name="product_category_ids"/>
+                <filter string="Mensuales" name="freq_m" domain="[('frequency','=','monthly')]"/>
+                <filter string="Trimestrales" name="freq_q" domain="[('frequency','=','quarterly')]"/>
+                <filter string="Anuales" name="freq_y" domain="[('frequency','=','yearly')]"/>
+                <separator/>
+                <filter string="Archivadas" name="inactive" domain="[('active','=',False)]"/>
+                <separator/>
+                <group>
+                    <filter string="Equipo" name="group_team" context="{'group_by':'team_id'}"/>
+                    <filter string="Tipo" name="group_rule_type" context="{'group_by':'rule_type'}"/>
+                    <filter string="Frecuencia" name="group_frequency" context="{'group_by':'frequency'}"/>
+                    <filter string="Compania" name="group_company" context="{'group_by':'company_id'}" groups="base.group_multi_company"/>
+                </group>
+            </search>
+        </field>
+    </record>
+
+    <record id="action_commission_rate_rule" model="ir.actions.act_window">
+        <field name="name">Reglas de comision</field>
+        <field name="res_model">commission.rate.rule</field>
+        <field name="view_mode">list,form</field>
+        <field name="search_view_id" ref="commission_rate_rule_view_search"/>
+        <field name="context">{'search_default_group_team': 1}</field>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">Configura las reglas de comision por equipo.</p>
+            <p>
+                Cada regla define frecuencia, tipo (cobrado / facturado / vendido / margen / cantidad),
+                tasa o monto fijo y criterios opcionales por producto o categoria.
+            </p>
+        </field>
+    </record>
+
+</odoo>

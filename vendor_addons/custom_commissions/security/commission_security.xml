@@ -1,0 +1,93 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <record id="module_category_commissions" model="ir.module.category">
+        <field name="name">Comisiones</field>
+        <field name="description">Gestion de comisiones por equipo y rol</field>
+        <field name="sequence">22</field>
+    </record>
+
+    <record id="res_groups_privilege_commissions" model="res.groups.privilege">
+        <field name="name">Comisiones</field>
+        <field name="sequence">10</field>
+        <field name="category_id" ref="module_category_commissions"/>
+    </record>
+
+    <record id="group_commission_user" model="res.groups">
+        <field name="name">Usuario</field>
+        <field name="sequence">10</field>
+        <field name="privilege_id" ref="res_groups_privilege_commissions"/>
+        <field name="implied_ids" eval="[(4, ref('base.group_user'))]"/>
+        <field name="comment">Ve unicamente sus propias lineas de comision.</field>
+    </record>
+
+    <record id="group_commission_manager" model="res.groups">
+        <field name="name">Gerente</field>
+        <field name="sequence">20</field>
+        <field name="privilege_id" ref="res_groups_privilege_commissions"/>
+        <field name="implied_ids" eval="[(4, ref('group_commission_user'))]"/>
+        <field name="user_ids" eval="[(4, ref('base.user_root')), (4, ref('base.user_admin'))]"/>
+        <field name="comment">Crea, calcula, aprueba hojas de comision y configura tasas.</field>
+    </record>
+
+    <!-- Record rules -->
+
+    <!-- Sheet: usuarios ven hojas que incluyen sus companias; managers todo. -->
+    <record id="commission_sheet_company_rule" model="ir.rule">
+        <field name="name">Hoja de comision multi-compania</field>
+        <field name="model_id" ref="model_commission_sheet"/>
+        <field name="domain_force">['|', ('company_ids', 'in', company_ids), ('company_ids', '=', False)]</field>
+        <field name="groups" eval="[(4, ref('group_commission_user'))]"/>
+    </record>
+
+    <!-- Line: usuario solo ve sus lineas; manager ve todas. -->
+    <record id="commission_line_user_rule" model="ir.rule">
+        <field name="name">Linea de comision: solo lo propio</field>
+        <field name="model_id" ref="model_commission_line"/>
+        <field name="domain_force">[('employee_id.user_id', '=', user.id)]</field>
+        <field name="groups" eval="[(4, ref('group_commission_user'))]"/>
+    </record>
+    <record id="commission_line_manager_rule" model="ir.rule">
+        <field name="name">Linea de comision: gerente ve todo</field>
+        <field name="model_id" ref="model_commission_line"/>
+        <field name="domain_force">[(1, '=', 1)]</field>
+        <field name="groups" eval="[(4, ref('group_commission_manager'))]"/>
+    </record>
+    <record id="commission_line_company_rule" model="ir.rule">
+        <field name="name">Linea de comision: multi-compania</field>
+        <field name="model_id" ref="model_commission_line"/>
+        <field name="domain_force">[('company_id', 'in', company_ids)]</field>
+        <field name="groups" eval="[(4, ref('group_commission_user'))]"/>
+    </record>
+
+    <!-- Detail line: idem que line. -->
+    <record id="commission_detail_line_user_rule" model="ir.rule">
+        <field name="name">Linea de detalle: solo lo propio</field>
+        <field name="model_id" ref="model_commission_detail_line"/>
+        <field name="domain_force">[('employee_id.user_id', '=', user.id)]</field>
+        <field name="groups" eval="[(4, ref('group_commission_user'))]"/>
+    </record>
+    <record id="commission_detail_line_manager_rule" model="ir.rule">
+        <field name="name">Linea de detalle: gerente ve todo</field>
+        <field name="model_id" ref="model_commission_detail_line"/>
+        <field name="domain_force">[(1, '=', 1)]</field>
+        <field name="groups" eval="[(4, ref('group_commission_manager'))]"/>
+    </record>
+
+    <!-- Manual adjustment: solo manager. -->
+    <record id="commission_manual_adjustment_manager_rule" model="ir.rule">
+        <field name="name">Ajuste manual: gerente</field>
+        <field name="model_id" ref="model_commission_manual_adjustment"/>
+        <field name="domain_force">[(1, '=', 1)]</field>
+        <field name="groups" eval="[(4, ref('group_commission_manager'))]"/>
+    </record>
+
+    <!-- Rate rule: multi-compania. -->
+    <record id="commission_rate_rule_company_rule" model="ir.rule">
+        <field name="name">Regla de tasa: multi-compania</field>
+        <field name="model_id" ref="model_commission_rate_rule"/>
+        <field name="domain_force">['|', ('company_id', 'in', company_ids), ('company_id', '=', False)]</field>
+        <field name="groups" eval="[(4, ref('group_commission_user'))]"/>
+    </record>
+
+</odoo>

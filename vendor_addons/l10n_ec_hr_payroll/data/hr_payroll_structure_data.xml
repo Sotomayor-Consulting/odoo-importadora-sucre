@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="l10n_ec_payroll_structure_employee" model="hr.payroll.structure">
+        <field name="name">Nomina mensual Ecuador</field>
+        <field name="type_id" ref="l10n_ec_payroll_structure_type_employee"/>
+        <field name="country_id" ref="base.ec"/>
+    </record>
+</odoo>

@@ -1,0 +1,61 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <!-- Redirect form for Payphone.
+         The base payment module's _processRedirectFlow() looks for a <form> element
+         inside the redirect_form_html, auto-submits it, and redirects the user.
+         For Payphone, the Prepare API returns a direct URL (payWithCard) so we
+         create a simple GET form pointing to that URL.
+    -->
+    <template id="redirect_form" name="Payphone: Redirect Form">
+        <form t-att-action="api_url" method="get">
+            <!-- No hidden fields needed: Payphone redirect URL is self-contained -->
+        </form>
+    </template>
+
+    <!-- Badge "+X% Fee" y datos del fee en la opcion de pago Payphone -->
+    <template id="payment_method_payphone_fee_dataset" inherit_id="payment.method_form">
+        <xpath expr="//input[@name='o_payment_radio']" position="attributes">
+            <attribute name="t-att-data-payphone-fee-percentage">provider_sudo.payphone_fee_percentage
+                if provider_sudo.code == 'payphone' else 0</attribute>
+            <attribute name="t-att-data-payphone-effective-rate">provider_sudo.payphone_fee_effective_rate
+                if provider_sudo.code == 'payphone' else 0</attribute>
+        </xpath>
+        <xpath expr="//label[hasclass('o_payment_option_label')]" position="after">
+            <t t-if="provider_sudo.code == 'payphone' and provider_sudo.payphone_fee_percentage > 0">
+                <span class="badge text-bg-primary ms-2"> +<t
+                        t-out="provider_sudo.payphone_fee_percentage" />% Fee </span>
+            </t>
+        </xpath>
+    </template>
+
+    <!-- Si la factura ya tiene linea de fee Payphone, exponer su valor para que el card
+         no recalcule sobre el total (que ya lo incluye). Solo aplica al portal de facturas. -->
+    <template id="payment_form_payphone_invoice_fee" inherit_id="account_payment.form">
+        <xpath expr="//form[@id='o_payment_form']" position="attributes">
+            <attribute name="t-att-data-payphone-existing-fee">invoice._payphone_existing_fee_total()
+                if invoice else 0</attribute>
+        </xpath>
+    </template>
+
+    <!-- Card informativo del recargo de Payphone -->
+    <template id="payment_form_payphone_fee_warning" inherit_id="payment.form">
+        <xpath expr="//form[@id='o_payment_form']" position="before">
+            <t t-set="payphone_fee_title" t-value="'Recargo por procesamiento con Payphone'" />
+
+            <div id="payphone-fee-warning"
+                class="alert alert-info d-none" role="alert">
+                <div class="d-flex align-items-center gap-2 mb-1">
+                    <i class="fa fa-info-circle" />
+                    <strong t-out="payphone_fee_title" />
+                </div>
+                <div class="small">
+                    <span id="payphone-fee-lead">Este metodo agrega un valor adicional de </span>
+                    <strong><span id="payphone-fee-amount">0.00</span> USD</strong>
+                    <span> por el procesamiento de pago seguro con Payphone.</span>
+                </div>
+            </div>
+        </xpath>
+    </template>
+
+</odoo>

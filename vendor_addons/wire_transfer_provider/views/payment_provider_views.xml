@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <record id="payment_provider_form_wire_transfer_provider" model="ir.ui.view">
+        <field name="name">payment.provider.form.wire.transfer.provider</field>
+        <field name="model">payment.provider</field>
+        <field name="inherit_id" ref="payment.payment_provider_form"/>
+        <field name="priority">35</field>
+        <field name="arch" type="xml">
+            <page name="credentials" position="attributes">
+                <attribute name="invisible" separator="or" add="code == 'wire_transfer_provider'"/>
+            </page>
+            <field name="payment_method_ids" position="attributes">
+                <attribute name="invisible" separator="or" add="code == 'wire_transfer_provider'"/>
+            </field>
+            <a name="action_view_payment_methods" position="attributes">
+                <attribute name="invisible" separator="or" add="code == 'wire_transfer_provider'"/>
+            </a>
+            <field name="capture_manually" position="after">
+                <group string="Transferencia bancaria" invisible="code != 'wire_transfer_provider'">
+                    <field name="wire_allow_receipt_upload"/>
+                    <field name="wire_receipt_max_size_mb"/>
+                    <field name="wire_company_bank_id"/>
+                    <field name="wire_company_bank_holder" invisible="not wire_company_bank_id"/>
+                    <field name="wire_company_bank_vat" invisible="not wire_company_bank_id"/>
+                </group>
+            </field>
+        </field>
+    </record>
+
+</odoo>

@@ -1,0 +1,107 @@
+<odoo>
+  <data>
+    <record id="view_entity_members_list" model="ir.ui.view">
+      <field name="name">sci_companies_management.member.list</field>
+      <field name="model">sci_companies_management.member</field>
+      <field name="arch" type="xml">
+        <list>
+          <field name="display_name"/>
+        </list>
+      </field>
+    </record>
+
+    <record id="view_entity_members_form" model="ir.ui.view">
+      <field name="name">sci_companies_management.member.form</field>
+      <field name="model">sci_companies_management.member</field>
+      <field name="arch" type="xml">
+        <form>
+          <sheet>
+            <div>
+              <h1>
+                <field name="display_name" />
+              </h1>
+            </div>
+            <group string="Información de miembro">
+              <field name="person_type" string="Tipo de persona" />
+              <field name="partner_id" invisible="person_type == 'company'" />
+              <field name="is_entity" invisible="person_type == 'individual'" />
+              <field name="internal_entity_id"
+                invisible="person_type == 'individual' or not is_entity" />
+              <field name="name" invisible="person_type == 'individual'" />
+              <field name="first_name" invisible="person_type == 'company'" />
+              <field name="last_name" invisible="person_type == 'company'" />
+              <field name="birth_date" string="Fecha de nacimiento" widget="date"
+                invisible="person_type == 'company'"/>
+              <field name="birth_date" string="Fecha de formación" widget="date"
+                invisible="person_type == 'individual'"/>
+              <field name="country_nationality_id" string="País de nacionalidad"
+                widget="country_select" />
+              <field name="marital_status" widget="tags" />
+              <field name="identification_type" />
+              <field name="identification_number" />
+              <field name="ssn" />
+              <field name="itin" />
+              <field name="date_start" widget="date" />
+              <field name="date_end" widget="date" />
+            </group>
+            <notebook>
+              <page string="Documentos">
+                <field name="document_ids" nolabel="1" />
+              </page>
+              <page string="Direcciones">
+                <field name="address_ids" nolabel="1"
+                  context="{'default_member_id': id}">
+                  <kanban>
+                    <field name="address_type" />
+                    <field name="country_id" />
+                    <field name="street" />
+                    <field name="street2" />
+                    <field name="zip" />
+                    <field name="city" />
+                    <field name="state_id" />
+                    <templates>
+                      <t t-name="card" class="p-2 mb-5 rounded">
+                        <div class="oe_kanban_details d-flex flex-column h-100">
+                          <div class="o_kanban_record_top mb-2">
+                            <strong class="o_kanban_record_title">
+                              <field name="address_type" widget="badge" />
+                            </strong>
+                          </div>
+                          <div class="o_kanban_record_body flex-grow-1 text-muted">
+                            <div t-if="record.street.raw_value">
+                              <field name="street" />
+                            </div>
+                            <div t-if="record.street2.raw_value">
+                              <field name="street2" />
+                            </div>
+                            <div
+                              t-if="record.city.raw_value or record.state_id.raw_value or record.zip.raw_value">
+                              <span t-if="record.city.raw_value">
+                                <field name="city" />
+                              </span>
+                              <span t-if="record.state_id.raw_value">, <field name="state_id" /></span>
+                              <span t-if="record.zip.raw_value">
+                                <field name="zip" />
+                              </span>
+                            </div>
+                          </div>
+                          <div class="o_kanban_record_bottom mt-auto pt-2">
+                            <div class="oe_kanban_bottom_left fw-bold">
+                              <i class="fa fa-map-marker text-primary me-1"
+                                t-if="record.country_id.raw_value" />
+                              <field name="country_id" />
+                            </div>
+                          </div>
+                        </div>
+                      </t>
+                    </templates>
+                  </kanban>
+                </field>
+              </page>
+            </notebook>
+          </sheet>
+        </form>
+      </field>
+    </record>
+  </data>
+</odoo>

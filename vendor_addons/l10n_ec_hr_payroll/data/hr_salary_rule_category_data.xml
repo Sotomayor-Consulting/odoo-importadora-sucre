@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="l10n_ec_salary_rule_category_earnings" model="hr.salary.rule.category">
+        <field name="name">Ingresos</field>
+        <field name="code">EC_EARN</field>
+    </record>
+    <record id="l10n_ec_salary_rule_category_deductions" model="hr.salary.rule.category">
+        <field name="name">Descuentos</field>
+        <field name="code">EC_DED</field>
+    </record>
+    <record id="l10n_ec_salary_rule_category_information" model="hr.salary.rule.category">
+        <field name="name">Informativo</field>
+        <field name="code">EC_INFO</field>
+    </record>
+    <record id="l10n_ec_salary_rule_category_employer_cost" model="hr.salary.rule.category">
+        <field name="name">Costo empresa</field>
+        <field name="code">EC_COST</field>
+    </record>
+    <record id="l10n_ec_salary_rule_category_net" model="hr.salary.rule.category">
+        <field name="name">Neto</field>
+        <field name="code">EC_NET</field>
+    </record>
+</odoo>

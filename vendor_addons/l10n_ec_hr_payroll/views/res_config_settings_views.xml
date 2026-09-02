@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="res_config_settings_view_form_l10n_ec_hr_payroll" model="ir.ui.view">
+        <field name="name">res.config.settings.view.form.l10n.ec.hr.payroll</field>
+        <field name="model">res.config.settings</field>
+        <field name="inherit_id" ref="base.res_config_settings_view_form"/>
+        <field name="arch" type="xml">
+            <xpath expr="//form" position="inside">
+                <app string="Nomina" name="l10n_ec_hr_payroll" groups="hr_payroll.group_hr_payroll_user">
+                    <block title="Nomina Ecuador">
+                        <setting string="Pago predeterminado de decimo tercero">
+                            <field name="l10n_ec_default_thirteenth_salary_payment"/>
+                        </setting>
+                        <setting string="Pago predeterminado de decimo cuarto">
+                            <field name="l10n_ec_default_fourteenth_salary_payment"/>
+                        </setting>
+                        <setting string="Pago predeterminado de fondos de reserva">
+                            <field name="l10n_ec_default_reserve_fund_payment"/>
+                        </setting>
+                    </block>
+                </app>
+            </xpath>
+        </field>
+    </record>
+</odoo>

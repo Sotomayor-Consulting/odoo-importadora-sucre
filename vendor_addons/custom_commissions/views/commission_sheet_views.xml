@@ -1,0 +1,207 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <record id="commission_sheet_view_list" model="ir.ui.view">
+        <field name="name">commission.sheet.list</field>
+        <field name="model">commission.sheet</field>
+        <field name="arch" type="xml">
+            <list string="Hojas de comision" decoration-info="state == 'draft'" decoration-success="state == 'paid'" decoration-muted="state == 'paid'">
+                <field name="name"/>
+                <field name="date_from"/>
+                <field name="date_to"/>
+                <field name="employee_count" string="# Empleados"/>
+                <field name="line_count" string="# Lineas"/>
+                <field name="amount_total" widget="monetary"/>
+                <field name="currency_id" column_invisible="1"/>
+                <field name="data_source" optional="show"/>
+                <field name="state" widget="badge" decoration-info="state == 'draft'" decoration-muted="state == 'collected'" decoration-warning="state == 'calculated'" decoration-success="state == 'approved' or state == 'paid'"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="commission_sheet_view_form" model="ir.ui.view">
+        <field name="name">commission.sheet.form</field>
+        <field name="model">commission.sheet</field>
+        <field name="arch" type="xml">
+            <form string="Hoja de comision">
+                <header>
+                    <button name="action_collect_data" string="Obtener datos" type="object" class="oe_highlight" invisible="state not in ('draft','collected','calculated')"/>
+                    <button name="action_calculate" string="Calcular" type="object" class="oe_highlight" invisible="state not in ('collected','calculated')"/>
+                    <button name="action_approve" string="Aprobar" type="object" class="oe_highlight" invisible="state != 'calculated'" groups="custom_commissions.group_commission_manager"/>
+                    <button name="action_mark_paid" string="Marcar pagado" type="object" invisible="state != 'approved'" groups="custom_commissions.group_commission_manager"/>
+                    <button name="action_reset_to_draft" string="Devolver a borrador" type="object" invisible="state in ('draft','paid')" groups="custom_commissions.group_commission_manager"/>
+                    <field name="state" widget="statusbar" statusbar_visible="draft,collected,calculated,approved,paid"/>
+                </header>
+                <sheet>
+                    <div class="oe_button_box" name="button_box">
+                        <button name="action_open_lines" type="object" class="oe_stat_button" icon="fa-list">
+                            <field name="line_count" widget="statinfo" string="Lineas"/>
+                        </button>
+                        <button name="action_open_detail_lines" type="object" class="oe_stat_button" icon="fa-file-text-o">
+                            <field name="detail_line_count" widget="statinfo" string="Detalle"/>
+                        </button>
+                        <button class="oe_stat_button" icon="fa-users" disabled="1">
+                            <field name="employee_count" widget="statinfo" string="Empleados"/>
+                        </button>
+                    </div>
+                    <div class="oe_title">
+                        <label for="name"/>
+                        <h1><field name="name" readonly="state != 'draft'"/></h1>
+                    </div>
+                    <group>
+                        <group string="Periodo">
+                            <field name="date_from" readonly="state != 'draft'"/>
+                            <field name="date_to" readonly="state != 'draft'"/>
+                            <field name="payslip_period_offset" readonly="state not in ('draft','collected','calculated')"/>
+                        </group>
+                        <group string="Alcance">
+                            <field name="data_source" readonly="state not in ('draft','collected')" widget="radio"/>
+                            <field name="team_ids" widget="many2many_tags" readonly="state != 'draft'" options="{'no_create': True}"/>
+                            <field name="company_ids" widget="many2many_tags" groups="base.group_multi_company" readonly="state != 'draft'"/>
+                            <field name="currency_id" invisible="1"/>
+                            <field name="include_product_roles" readonly="state != 'draft'"/>
+                            <field name="include_manual_adjustments" readonly="state != 'draft'"/>
+                        </group>
+                    </group>
+                    <group>
+                        <field name="amount_total" readonly="1"/>
+                    </group>
+                    <notebook>
+                        <page string="Lineas" name="lines">
+                            <field name="line_ids" readonly="state == 'paid'">
+                                <list decoration-muted="net_amount == 0">
+                                    <field name="employee_id"/>
+                                    <field name="team_id"/>
+                                    <field name="source"/>
+                                    <field name="base_amount" sum="Total" optional="show"/>
+                                    <field name="commission_amount" sum="Total"/>
+                                    <field name="base_salary_deduction" optional="hide"/>
+                                    <field name="net_amount" sum="Total"/>
+                                    <field name="detail_count" string="Logs"/>
+                                    <field name="currency_id" column_invisible="1"/>
+                                </list>
+                            </field>
+                        </page>
+                        <page string="Ajustes manuales" name="manual_adjustments" groups="custom_commissions.group_commission_manager">
+                            <field name="manual_adjustment_ids" readonly="state == 'paid'" context="{'default_sheet_id': id}">
+                                <list editable="bottom">
+                                    <field name="date"/>
+                                    <field name="employee_id"/>
+                                    <field name="team_id" optional="show"/>
+                                    <field name="reason"/>
+                                    <field name="description"/>
+                                    <field name="adjustment_mode"/>
+                                    <field name="amount"/>
+                                    <field name="rate" optional="show"/>
+                                    <field name="base_reference" optional="hide"/>
+                                    <field name="computed_amount" sum="Total"/>
+                                    <field name="currency_id" column_invisible="1"/>
+                                </list>
+                            </field>
+                        </page>
+                        <page string="Lineas de detalle" name="detail_lines">
+                            <field name="detail_line_ids" readonly="1">
+                                <list decoration-muted="not is_calculated">
+                                    <field name="is_calculated" column_invisible="1"/>
+                                    <field name="date"/>
+                                    <field name="order_date" optional="show"/>
+                                    <field name="event_type" optional="show"/>
+                                    <field name="employee_id"/>
+                                    <field name="team_id" optional="show"/>
+                                    <field name="rule_id" optional="show"/>
+                                    <field name="source" optional="hide"/>
+                                    <field name="partner_id" optional="show"/>
+                                    <field name="sale_order_id" optional="show"/>
+                                    <field name="product_id" optional="show"/>
+                                    <field name="quantity" optional="show"/>
+                                    <field name="price_total" optional="hide"/>
+                                    <field name="cost_amount" optional="hide"/>
+                                    <field name="invoice_id" optional="hide"/>
+                                    <field name="bank_statement_line_id" optional="hide"/>
+                                    <field name="payment_transaction_id" optional="hide"/>
+                                    <field name="stripe_fee" optional="hide"/>
+                                    <field name="project_id" optional="hide"/>
+                                    <field name="task_state" optional="hide"/>
+                                    <field name="base_amount" sum="Total"/>
+                                    <field name="rate" optional="hide"/>
+                                    <field name="commission_amount" sum="Total"/>
+                                    <field name="currency_id" column_invisible="1"/>
+                                </list>
+                            </field>
+                        </page>
+                        <page string="Notas" name="notes">
+                            <field name="notes" nolabel="1"/>
+                        </page>
+                    </notebook>
+                </sheet>
+                <chatter/>
+            </form>
+        </field>
+    </record>
+
+    <record id="commission_sheet_view_kanban" model="ir.ui.view">
+        <field name="name">commission.sheet.kanban</field>
+        <field name="model">commission.sheet</field>
+        <field name="arch" type="xml">
+            <kanban default_group_by="state" group_create="false" group_delete="false">
+                <field name="name"/>
+                <field name="date_from"/>
+                <field name="date_to"/>
+                <field name="amount_total"/>
+                <field name="currency_id"/>
+                <field name="state"/>
+                <field name="employee_count"/>
+                <templates>
+                    <t t-name="card">
+                        <div class="o_kanban_card_content">
+                            <strong><field name="name"/></strong>
+                            <div class="text-muted">
+                                <field name="date_from"/> &#8594; <field name="date_to"/>
+                            </div>
+                            <div class="mt8">
+                                <field name="amount_total" widget="monetary"/>
+                                <span class="float-end text-muted">
+                                    <field name="employee_count"/> empleados
+                                </span>
+                            </div>
+                        </div>
+                    </t>
+                </templates>
+            </kanban>
+        </field>
+    </record>
+
+    <record id="commission_sheet_view_search" model="ir.ui.view">
+        <field name="name">commission.sheet.search</field>
+        <field name="model">commission.sheet</field>
+        <field name="arch" type="xml">
+            <search>
+                <field name="name"/>
+                <field name="team_ids"/>
+                <filter string="Borrador" name="draft" domain="[('state','=','draft')]"/>
+                <filter string="Calculadas" name="calculated" domain="[('state','=','calculated')]"/>
+                <filter string="Aprobadas" name="approved" domain="[('state','=','approved')]"/>
+                <filter string="Pagadas" name="paid" domain="[('state','=','paid')]"/>
+                <separator/>
+                <filter string="Este anio" name="this_year" domain="[('date_from','&gt;=', (context_today() + relativedelta(month=1, day=1)).strftime('%Y-%m-%d'))]"/>
+                <separator/>
+                <group>
+                    <filter string="Estado" name="group_state" context="{'group_by':'state'}"/>
+                    <filter string="Anio" name="group_year" context="{'group_by':'date_from:year'}"/>
+                </group>
+            </search>
+        </field>
+    </record>
+
+    <record id="action_commission_sheet" model="ir.actions.act_window">
+        <field name="name">Hojas de comision</field>
+        <field name="res_model">commission.sheet</field>
+        <field name="view_mode">list,kanban,form</field>
+        <field name="search_view_id" ref="commission_sheet_view_search"/>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">Crea la primera hoja mensual</p>
+            <p>Configura el periodo y los equipos, presiona Calcular para generar las lineas.</p>
+        </field>
+    </record>
+
+</odoo>
