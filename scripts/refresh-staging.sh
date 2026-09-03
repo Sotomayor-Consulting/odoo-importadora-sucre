@@ -192,7 +192,7 @@ log "5/8 Neutralizando la base de staging..."
 docker run --rm \
   --network "container:$STAGING_DB_CONTAINER" \
   --entrypoint python3 "$STAGING_ODOO_IMAGE" \
-  -m odoo neutralize -c /etc/odoo/odoo.conf \
+  /opt/odoo/odoo-bin neutralize -c /etc/odoo/odoo.conf \
     --db_host=127.0.0.1 --db_port=5432 \
     --db_user="$APP_DB_USER" --db_password="$APP_DB_PASSWORD" \
     -d "$STAGING_DB"
