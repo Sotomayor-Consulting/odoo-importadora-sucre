@@ -6,3 +6,4 @@ entrypoint.sh text eol=lf
 odoo.conf   text eol=lf
 Dockerfile  text eol=lf
 *.yml       text eol=lf
+odoo-bin    text eol=lf

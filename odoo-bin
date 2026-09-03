@@ -1,0 +1,11 @@
+#!/usr/bin/env python3
+# Punto de entrada equivalente al odoo-bin oficial (el tarball sdist no lo
+# incluye). Arrancar con "python3 -m odoo" se rompe con workers > 0: al
+# respawnear procesos, sys.argv[0] apunta a odoo/__main__.py y este se
+# re-ejecuta como script suelto, sin paquete padre, produciendo
+#   ImportError: attempted relative import with no known parent package
+# Un script real con import ABSOLUTO evita ese fallo: en el re-exec,
+# sys.argv[0] es este archivo y "import odoo" resuelve por PYTHONPATH.
+if __name__ == "__main__":
+    from odoo.cli.command import main
+    main()

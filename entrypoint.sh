@@ -36,7 +36,7 @@ if [ -z "$SKIP_DB_INIT" ]; then
   if ! PGPASSWORD="$PASSWORD" psql -h "$HOST" -p "$PORT" -U "$USER" -d postgres -tAc \
         "SELECT 1 FROM pg_database WHERE datname='$DB_NAME'" 2>/dev/null | grep -q 1; then
     echo "Base '$DB_NAME' inexistente: inicializando (modulo base, sin demo)..."
-    python3 -m odoo -c "$ODOO_RC" $DB_ARGS -d "$DB_NAME" -i base \
+    python3 /opt/odoo/odoo-bin -c "$ODOO_RC" $DB_ARGS -d "$DB_NAME" -i base \
       --without-demo=all --stop-after-init
   fi
 fi
@@ -50,7 +50,7 @@ fi
 # normales no repitan la actualizacion (es lenta y no debe correr en cada boot).
 if [ -n "${UPGRADE:-}" ]; then
   echo "Actualizando modulos ($UPGRADE) en '$DB_NAME'..."
-  python3 -m odoo -c "$ODOO_RC" $DB_ARGS -d "$DB_NAME" -u "$UPGRADE" --stop-after-init
+  python3 /opt/odoo/odoo-bin -c "$ODOO_RC" $DB_ARGS -d "$DB_NAME" -u "$UPGRADE" --stop-after-init
 fi
 
-exec python3 -m odoo -c "$ODOO_RC" $DB_ARGS "$@"
+exec python3 /opt/odoo/odoo-bin -c "$ODOO_RC" $DB_ARGS "$@"

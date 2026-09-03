@@ -75,6 +75,7 @@ RUN --mount=type=secret,id=r2_url \
 # ya estara satisfecha, asi que apenas descarga nada.
 RUN pip3 install --no-cache-dir -r /opt/odoo/requirements.txt
 
+COPY --chown=odoo:odoo odoo-bin      /opt/odoo/odoo-bin
 COPY --chown=odoo:odoo custom_addons /mnt/custom_addons
 COPY --chown=odoo:odoo vendor_addons /mnt/vendor_addons
 COPY --chown=odoo:odoo odoo.conf     /etc/odoo/odoo.conf
