@@ -46,7 +46,13 @@ RUN curl -fsSL -o /tmp/wkhtmltox.deb "${WKHTMLTOPDF_URL}" \
  && echo "${WKHTMLTOPDF_SHA1}  /tmp/wkhtmltox.deb" | sha1sum -c - \
  && apt-get update \
  && apt-get install -y --no-install-recommends /tmp/wkhtmltox.deb \
- && rm -f /tmp/wkhtmltox.deb && rm -rf /var/lib/apt/lists/*
+ && rm -f /tmp/wkhtmltox.deb && rm -rf /var/lib/apt/lists/* \
+ # Red de seguridad: el .deb es la build de jammy (no hay build de noble). Si
+ # quedara instalada la version "without patched qt", las cabeceras y pies de
+ # los PDF saldrian rotos SIN ningun error. Que el build falle aqui, ruidoso,
+ # en vez de generar informes defectuosos en produccion.
+ && wkhtmltopdf --version | grep -q 'with patched qt' \
+      || { echo 'FATAL: wkhtmltopdf no es la build patched-qt'; exit 1; }
 
 RUN groupadd -g 101 odoo \
  && useradd -u 100 -g 101 -md /var/lib/odoo -s /bin/bash odoo \

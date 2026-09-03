@@ -32,3 +32,9 @@ sessions/
 .idea/
 .DS_Store
 Thumbs.db
+
+# Config con credenciales del refresco de staging
+scripts/refresh-staging.env
+
+# Config con credenciales de backups
+scripts/backup.env

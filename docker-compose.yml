@@ -1,12 +1,22 @@
 services:
   db:
     image: postgres:16
+    # max_connections elevado para dar cabida a (workers + 2) x db_maxconn.
+    command: ["postgres", "-c", "max_connections=200"]
     environment:
+      # Superusuario del contenedor: SOLO administracion y backups.
       POSTGRES_USER: ${POSTGRES_USER}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
       POSTGRES_DB: postgres
+      # Rol de aplicacion (sin superusuario) que crea db-init/10-odoo-role.sh
+      # y con el que se conecta Odoo.
+      ODOO_DB_USER: ${ODOO_DB_USER}
+      ODOO_DB_PASSWORD: ${ODOO_DB_PASSWORD}
     volumes:
       - db-data:/var/lib/postgresql/data
+      # Scripts de inicializacion. Postgres los corre una unica vez, cuando el
+      # volumen esta vacio. Aqui se crea el rol de aplicacion de Odoo.
+      - ./db-init:/docker-entrypoint-initdb.d:ro
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER}"]
       interval: 10s
@@ -28,11 +38,20 @@ services:
         condition: service_healthy
     environment:
       # Consumidas por entrypoint.sh para construir los argumentos de
-      # conexion. Ver el comentario en odoo.conf.
+      # conexion. Odoo se conecta con el ROL DE APLICACION, no con el
+      # superusuario. Ver el comentario en odoo.conf.
       HOST: db
       PORT: 5432
-      USER: ${POSTGRES_USER}
-      PASSWORD: ${POSTGRES_PASSWORD}
+      USER: ${ODOO_DB_USER}
+      PASSWORD: ${ODOO_DB_PASSWORD}
+      # Base que crea/sirve el stack (coincide con db_name/dbfilter en odoo.conf).
+      DB_NAME: ${DB_NAME:-importadora_sucre}
+      # Master password, inyectada por el entrypoint (no se versiona).
+      ADMIN_PASSWD: ${ADMIN_PASSWD}
+      # Actualizacion de modulos en el arranque (aplica migraciones). Vacio en
+      # operacion normal; se pone 'all' (o una lista) SOLO en el despliegue de
+      # actualizacion y se vuelve a vaciar despues. Ver el ritual en la doc.
+      UPGRADE: ${UPGRADE:-}
     volumes:
       # Filestore y sesiones. Sin esto se pierden los adjuntos en cada
       # redespliegue y las sesiones se invalidan.
@@ -40,6 +59,30 @@ services:
     expose:
       - "8069"   # HTTP
       - "8072"   # websockets (chat, notificaciones en vivo)
+    # Router extra de Traefik para el websocket. La doc oficial de Odoo exige
+    # redirigir las peticiones cuyo path empieza por /websocket al puerto gevent
+    # 8072 (el resto va al 8069). El dominio principal (8069) lo configuras por
+    # la UI de Dokploy; este bloque solo añade la ruta del websocket.
+    # DOMAIN y el certresolver deben coincidir con los de tu Dokploy.
+    labels:
+      - "traefik.enable=true"
+      - "traefik.docker.network=dokploy-network"
+      - "traefik.http.routers.odoo-ws.rule=Host(`${DOMAIN}`) && PathPrefix(`/websocket`)"
+      - "traefik.http.routers.odoo-ws.entrypoints=websecure"
+      - "traefik.http.routers.odoo-ws.tls=true"
+      - "traefik.http.routers.odoo-ws.tls.certresolver=letsencrypt"
+      # Prioridad alta para ganar sobre el router principal de '/'.
+      - "traefik.http.routers.odoo-ws.priority=100"
+      - "traefik.http.routers.odoo-ws.service=odoo-ws"
+      - "traefik.http.services.odoo-ws.loadbalancer.server.port=8072"
+    healthcheck:
+      # /web/health responde 200 cuando Odoo esta listo. start_period amplio
+      # para cubrir la inicializacion de la base en el primer arranque.
+      test: ["CMD-SHELL", "curl -fsS http://localhost:8069/web/health || exit 1"]
+      interval: 20s
+      timeout: 5s
+      retries: 6
+      start_period: 180s
     networks:
       - internal          # para hablar con la base
       - dokploy-network   # para que el proxy lo alcance
@@ -48,6 +91,8 @@ services:
 # La URL prefirmada de R2 se toma de la variable R2_URL que define Dokploy.
 # Verificado: Compose la resuelve desde el archivo .env que Dokploy genera,
 # sin necesidad de exportarla en el shell.
+# Nota: los secretos por 'environment' solo funcionan con 'docker compose'
+# (modo Compose de Dokploy), NO con 'docker stack deploy' (Swarm).
 secrets:
   r2_url:
     environment: R2_URL

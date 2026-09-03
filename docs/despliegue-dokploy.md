@@ -203,3 +203,59 @@ Comprobados sobre la instalacion real, no deducidos de la documentacion:
   Dokploy lo enruta para que el chat y las notificaciones en vivo funcionen.
 - **Copias de seguridad.** Definir respaldo del volumen `db-data` (base) y
   `odoo-data` (filestore con los adjuntos). Ambos son imprescindibles.
+
+---
+
+## 9. Websocket detras del proxy (chat y notificaciones en vivo)
+
+La [doc oficial de Odoo](https://www.odoo.com/documentation/19.0/administration/on_premise/deploy.html)
+exige dos cosas para que el chat y las notificaciones en vivo funcionen tras un
+proxy:
+
+1. Correr Odoo con `--proxy-mode` (ya esta: `proxy_mode = True` en `odoo.conf`).
+2. Que el proxy **redirija las peticiones cuyo path empieza por `/websocket` al
+   puerto gevent 8072**; el resto va al 8069.
+
+Ademas, ese puerto 8072 **solo existe si `workers > 0`** (ya esta: `workers = 5`).
+
+**Como se hace en Dokploy (Traefik).** El dominio principal (8069) se configura
+por la UI de Dokploy como siempre. La ruta del websocket la añade el bloque
+`labels` del servicio `odoo` en `docker-compose.yml`: crea un router
+`odoo-ws` con `PathPrefix(/websocket)` y prioridad alta que apunta al puerto
+8072. Traefik gestiona solo el *upgrade* de websocket y las cabeceras
+`X-Forwarded-*`, asi que no hace falta middleware extra.
+
+Ajustes a revisar en ese bloque para que encajen con tu Dokploy:
+- `DOMAIN` debe ser el mismo dominio que pusiste en la UI.
+- `entrypoints=websecure` y `tls.certresolver=letsencrypt` son los nombres por
+  defecto de Dokploy; cambialos si tu instalacion usa otros.
+
+**Comprobacion.** Con el stack arriba, entra a Odoo y abre Discuss o envia un
+mensaje: debe llegar en vivo sin recargar. En las herramientas de desarrollador
+del navegador, la peticion a `wss://TU_DOMINIO/websocket` debe quedar en estado
+`101 Switching Protocols`.
+
+---
+
+## 10. Actualizacion de modulos (variable UPGRADE)
+
+El `entrypoint.sh` inicializa la base la primera vez, pero **no actualiza los
+modulos por si solo**: subir una version nueva del fuente o cambiar un modulo no
+aplica sus migraciones hasta que se corre `-u`.
+
+Para eso esta la variable `UPGRADE`:
+
+- **Operacion normal:** `UPGRADE` vacio. Los arranques no actualizan nada (es
+  lento y no debe correr en cada boot).
+- **Despliegue de actualizacion:** pon `UPGRADE=all` en Dokploy, despliega (el
+  entrypoint corre `-u all --stop-after-init` antes de arrancar los workers,
+  aplicando las migraciones) y **vuelve a vaciar `UPGRADE`** para el siguiente
+  despliegue. Para un cambio acotado, `UPGRADE=nombre_del_modulo`.
+
+Encaja en el "Ritual de actualizacion de Odoo" (seccion 5): tras subir el
+tarball nuevo y cambiar `ODOO_VERSION`/`ODOO_SHA256`, haz **un** despliegue con
+`UPGRADE=all`, verifica, y limpia la variable.
+
+> Antes de un `UPGRADE=all` en produccion, ten un backup reciente (ver
+> [backups.md](backups.md)) y, si puedes, pruebalo primero en staging (ver
+> [entornos-staging.md](entornos-staging.md)).

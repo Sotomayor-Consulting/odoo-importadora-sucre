@@ -1,0 +1,8 @@
+# Los scripts y config que se ejecutan dentro del contenedor Linux DEBEN tener
+# saltos de linea LF. En Windows, un CRLF en entrypoint.sh convierte el shebang
+# en "#!/bin/sh\r" y el contenedor no arranca.
+*.sh        text eol=lf
+entrypoint.sh text eol=lf
+odoo.conf   text eol=lf
+Dockerfile  text eol=lf
+*.yml       text eol=lf
