@@ -46,6 +46,9 @@ services:
       PASSWORD: ${ODOO_DB_PASSWORD}
       # Base que crea/sirve el stack (coincide con db_name/dbfilter en odoo.conf).
       DB_NAME: ${DB_NAME:-importadora_sucre}
+      # En staging va a "1": no inicializa la base (se restaura con
+      # refresh-staging.sh). En produccion se deja vacio.
+      SKIP_DB_INIT: ${SKIP_DB_INIT:-}
       # Master password, inyectada por el entrypoint (no se versiona).
       ADMIN_PASSWD: ${ADMIN_PASSWD}
       # Actualizacion de modulos en el arranque (aplica migraciones). Vacio en
