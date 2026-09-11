@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="report_invoice_document_fixed_discount" model="ir.ui.view">
+        <field name="name">account.report.invoice.fixed.discount</field>
+        <field name="model">account.move</field>
+        <field name="inherit_id" ref="account.report_invoice_document"/>
+        <field name="arch" type="xml">
+            <xpath expr="//t[@t-set='display_discount']" position="attributes">
+                <attribute name="t-value">any(l.discount or l.discount_fixed for l in o.invoice_line_ids)</attribute>
+            </xpath>
+            <xpath expr="//td[@name='td_discount'][1]/span" position="after">
+                <span class="text-nowrap ms-1" t-field="line.discount_fixed">0.00</span>
+            </xpath>
+        </field>
+    </record>
+</odoo>
