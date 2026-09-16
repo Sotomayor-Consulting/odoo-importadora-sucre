@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="view_order_form_fixed_discount" model="ir.ui.view">
+        <field name="name">sale.order.form.fixed.discount</field>
+        <field name="model">sale.order</field>
+        <field name="inherit_id" ref="sale.view_order_form"/>
+        <field name="arch" type="xml">
+            <xpath expr="//field[@name='order_line']/list//field[@name='discount']" position="after">
+                <field name="discount_fixed" string="Desc. Fijo" groups="sale.group_discount_per_so_line" optional="show" width="110px"/>
+            </xpath>
+            <xpath expr="//field[@name='order_line']/form//div[@name='discount']" position="after">
+                <t groups="sale.group_discount_per_so_line">
+                    <label for="discount_fixed"/>
+                    <div name="discount_fixed">
+                        <field name="discount_fixed" class="oe_inline"/>
+                    </div>
+                </t>
+            </xpath>
+        </field>
+    </record>
+</odoo>
