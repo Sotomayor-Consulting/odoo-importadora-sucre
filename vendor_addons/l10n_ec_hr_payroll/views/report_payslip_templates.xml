@@ -1,0 +1,138 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- Rol de pagos de Ecuador: hereda el recibo estandar (primary) y reemplaza sus secciones por id,
+         igual que las localizaciones oficiales (ej. l10n_ke_hr_payroll). Mantiene el aviso de recibo no validado. -->
+    <template id="report_payslip_ec" inherit_id="hr_payroll.report_payslip" primary="True">
+        <!-- Encabezado propio (logo, nombre, RUC, correo, direccion), como los documentos de la empresa:
+             se usa basic_layout para no duplicar el encabezado del diseño de documentos. -->
+        <xpath expr="//t[@t-call='web.external_layout']" position="attributes">
+            <attribute name="t-call">web.basic_layout</attribute>
+        </xpath>
+        <xpath expr="//div[hasclass('page')]" position="attributes">
+            <attribute name="style">font-family: Arial, Helvetica, sans-serif; font-size: 13px;</attribute>
+        </xpath>
+
+        <h2 id="payslip_name" position="replace">
+            <t t-set="months" t-value="['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre']"/>
+            <div id="l10n_ec_company_header" class="d-flex align-items-center pb-2 my-2 border-bottom border-1 border-dark">
+                <div class="pe-3" t-if="o.company_id.logo">
+                    <img t-att-src="image_data_uri(o.company_id.logo)" style="width: 100px;" alt="Logo"/>
+                </div>
+                <div>
+                    <div class="fw-bold fs-3 text-uppercase" t-field="o.company_id.name"/>
+                    <div t-if="o.company_id.vat">RUC: <span t-field="o.company_id.vat"/></div>
+                    <div t-if="o.company_id.email" t-field="o.company_id.email"/>
+                    <div t-if="o.company_id.street">
+                        <span t-field="o.company_id.street"/>
+                        <t t-if="o.company_id.street2"> y
+                            <span t-field="o.company_id.street2"/>
+                        </t>
+                    </div>
+                </div>
+            </div>
+            <div id="payslip_name" class="text-center fs-4 fw-bold my-4 text-uppercase">
+                Rol de pagos <span t-out="months[o.date_from.month - 1]"/> <span t-out="o.date_from.year"/>
+            </div>
+        </h2>
+
+        <div id="infos_table" position="replace">
+            <t t-set="paid_days" t-value="o._l10n_ec_get_paid_days()"/>
+            <table id="infos_table" class="table table-borderless table-sm mb-2" style="line-height: 1.2;">
+                <tr>
+                    <td class="fw-bold text-nowrap" style="width: 14%;">Nombre</td>
+                    <td style="width: 44%;"><span t-field="o.employee_id.legal_name"/></td>
+                    <td class="fw-bold text-nowrap" style="width: 16%;">Cédula</td>
+                    <td><span t-field="o.version_id.identification_id"/></td>
+                </tr>
+                <tr>
+                    <td class="fw-bold text-nowrap">Departamento</td>
+                    <td><span t-out="o.version_id.department_id.name or o.employee_id.department_id.name"/></td>
+                    <td class="fw-bold text-nowrap">Días trabajados</td>
+                    <td><span t-out="int(paid_days) if paid_days == int(paid_days) else round(paid_days, 2)"/></td>
+                </tr>
+                <tr>
+                    <td class="fw-bold text-nowrap">Cargo</td>
+                    <td><span t-out="o.version_id.job_id.name or o.employee_id.job_title"/></td>
+                    <td class="fw-bold text-nowrap">Mes</td>
+                    <td><span t-out="months[o.date_from.month - 1]"/> <span t-out="o.date_from.year"/></td>
+                </tr>
+                    <td class="fw-bold text-nowrap">Periodo</td>
+                    <td><span t-field="o.date_from"/> - <span t-field="o.date_to"/></td>
+            </table>
+
+        </div>
+
+        <div id="payslip_lines_table" position="replace">
+            <t t-set="visible_lines" t-value="o.line_ids.filtered(lambda line: line.appears_on_payslip and line.total)"/>
+            <t t-set="income_lines" t-value="visible_lines.filtered(lambda line: line.category_id.code in ('BASIC', 'EC_ALW_G', 'EC_ALW_NG'))"/>
+            <t t-set="deduction_lines" t-value="visible_lines.filtered(lambda line: line.category_id.code == 'DED')"/>
+            <t t-set="net" t-value="sum(o.line_ids.filtered(lambda line: line.code == 'NET').mapped('total'))"/>
+            <t t-set="rows" t-value="max(len(income_lines), len(deduction_lines))"/>
+            <t t-set="amount_options" t-value='{"widget": "float", "precision": 2}'/>
+
+            <div id="payslip_lines_table">
+                <table class="table table-sm table-borderless mb-0" style="border: 1px solid #000;">
+                    <thead>
+                        <tr>
+                            <th class="text-center w-35">INGRESOS</th>
+                            <th class="text-end w-15">VALOR</th>
+                            <th class="text-center w-35 ps-4">EGRESOS</th>
+                            <th class="text-end w-15">VALOR</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr t-foreach="range(rows)" t-as="i">
+                            <t t-set="income" t-value="income_lines[i] if i &lt; len(income_lines) else False"/>
+                            <t t-set="deduction" t-value="deduction_lines[i] if i &lt; len(deduction_lines) else False"/>
+                            <td class="py-0"><span t-if="income" t-out="income.name.upper()"/></td>
+                            <td class="py-0 text-end"><span t-if="income" t-out="income.total" t-options="amount_options"/></td>
+                            <td class="py-0 ps-4"><span t-if="deduction" t-out="deduction.name.upper()"/></td>
+                            <td class="py-0 text-end"><span t-if="deduction" t-out="abs(deduction.total)" t-options="amount_options"/></td>
+                        </tr>
+                        <tr class="fw-bold">
+                            <td class="pt-2">TOTAL INGRESOS:</td>
+                            <td class="pt-2 text-end"><span t-out="sum(income_lines.mapped('total'))" t-options="amount_options"/></td>
+                            <td class="pt-2 ps-4">TOTAL EGRESOS:</td>
+                            <td class="pt-2 text-end"><span t-out="abs(sum(deduction_lines.mapped('total')))" t-options="amount_options"/></td>
+                        </tr>
+                        <tr class="fw-bold" style="border-top: 1px solid #000;">
+                            <td>TOTAL A RECIBIR:</td>
+                            <td class="text-end"><span t-out="net" t-options="amount_options"/></td>
+                            <td colspan="2"/>
+                        </tr>
+                    </tbody>
+                </table>
+                <div class="oe_structure"></div>
+            </div>
+        </div>
+
+        <div id="to_pay" position="replace">
+            <div id="to_pay" class="row text-center fw-bold" style="margin-top: 90px; page-break-inside: avoid;">
+                <div class="col-5">
+                    <div class="border-top border-dark pt-2">RECIBÍ CONFORME</div>
+                    <div class="mt-2" t-if="o.version_id.identification_id">
+                        <span class="d-block text-uppercase" t-field="o.employee_id.legal_name"/>
+                        CI: <span t-field="o.version_id.identification_id"/>
+                    </div>
+                </div>
+                <div class="col-5 offset-2">
+                    <div class="border-top border-dark pt-2">ENTREGUÉ CONFORME</div>
+                    <div class="mt-2" t-if="o.company_id.vat">
+                        <span class="d-block text-uppercase">Gerencia</span>
+                        <span class="d-block text-uppercase" t-field="o.company_id.name"/>
+                        RUC:<span t-field="o.company_id.vat"/>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </template>
+
+    <template id="report_payslip_ec_lang">
+        <t t-call="web.html_container">
+            <t t-foreach="docs" t-as="o">
+                <t t-set="o" t-value="o.with_context(lang=o.employee_id.lang or o.env.lang)"/>
+                <t t-call="l10n_ec_hr_payroll.report_payslip_ec" t-lang="o.env.lang"/>
+            </t>
+        </t>
+    </template>
+</odoo>

@@ -1,24 +1,40 @@
 <?xml version="1.0" encoding="utf-8"?>
 <odoo>
-    <record id="l10n_ec_hr_employee_view_form" model="ir.ui.view">
+    <record id="hr_employee_view_form_l10n_ec_payroll" model="ir.ui.view">
         <field name="name">hr.employee.form.l10n.ec.payroll</field>
         <field name="model">hr.employee</field>
         <field name="inherit_id" ref="hr_payroll.payroll_hr_employee_view_form"/>
         <field name="arch" type="xml">
             <group name="payroll_group" position="inside">
-                <group string="Nomina Ecuador" invisible="company_country_code != 'EC'">
-                    <field name="l10n_ec_service_time_display" readonly="1"/>
-                    <field name="l10n_ec_service_days" readonly="1"/>
-                    <field name="l10n_ec_iess_affiliated"/>
-                    <field name="l10n_ec_apply_iess"/>
-                    <field name="l10n_ec_thirteenth_salary_payment"/>
-                    <field name="l10n_ec_fourteenth_salary_payment"/>
-                    <field name="l10n_ec_reserve_fund_payment"/>
-                    <separator string="Quincena"/>
-                    <field name="l10n_ec_pay_quincena"/>
-                    <field name="l10n_ec_quincena_amount" invisible="not l10n_ec_pay_quincena"/>
+                <group string="Nómina Ecuador" name="l10n_ec_payroll" invisible="company_country_code != 'EC'"
+                       groups="hr_payroll.group_hr_payroll_user">
+                    <field name="l10n_ec_quincena_fortnightly"/>
+                    <field name="l10n_ec_13th_salary_accumulate"/>
+                    <field name="l10n_ec_14th_salary_accumulate"/>
+                    <field name="l10n_ec_reserve_funds_accumulate"/>
+                    <separator string="Tiempo de servicio"/>
+                    <field name="l10n_ec_service_time"/>
+                    <field name="l10n_ec_active_days"/>
+                    <field name="l10n_ec_has_reserve_funds"/>
                 </group>
             </group>
+            <page name="payroll_information" position="after">
+                <page name="l10n_ec_iess_documents" string="Documentos IESS"
+                      invisible="company_country_code != 'EC'" groups="hr_payroll.group_hr_payroll_user">
+                    <field name="l10n_ec_iess_entry_notice_filename" invisible="1"/>
+                    <field name="l10n_ec_iess_termination_notice_filename" invisible="1"/>
+                    <group>
+                        <group string="Aviso de entrada">
+                            <field name="l10n_ec_iess_entry_notice_file" nolabel="1" colspan="2"
+                                    widget="pdf_viewer" filename="l10n_ec_iess_entry_notice_filename"/>
+                        </group>
+                        <group string="Aviso de salida">
+                            <field name="l10n_ec_iess_termination_notice_file" nolabel="1" colspan="2"
+                                   widget="pdf_viewer" filename="l10n_ec_iess_termination_notice_filename"/>
+                        </group>
+                    </group>
+                </page>
+            </page>
         </field>
     </record>
 </odoo>

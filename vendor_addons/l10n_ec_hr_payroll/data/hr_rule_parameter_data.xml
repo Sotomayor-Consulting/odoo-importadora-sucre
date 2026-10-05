@@ -1,0 +1,76 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- Parametros legales de Ecuador. El modulo es la fuente de verdad (sin noupdate),
+         igual que las localizaciones oficiales: cada año se agrega aqui el valor nuevo
+         con su fecha de vigencia y se actualiza el modulo. Las reglas no se tocan.
+         Los porcentajes se guardan como fraccion (9.45 % = 0.0945). -->
+
+    <!-- Salario Basico Unificado -->
+    <record id="rule_parameter_sbu" model="hr.rule.parameter">
+        <field name="name">Ecuador: Salario Básico Unificado (SBU)</field>
+        <field name="code">l10n_ec_sbu</field>
+        <field name="country_id" ref="base.ec"/>
+        <field name="description">Base del décimo cuarto sueldo y sueldo mínimo legal.</field>
+    </record>
+    <record id="rule_parameter_sbu_2025" model="hr.rule.parameter.value">
+        <field name="rule_parameter_id" ref="rule_parameter_sbu"/>
+        <field name="date_from" eval="datetime(2025, 1, 1).date()"/>
+        <field name="parameter_value">470</field>
+    </record>
+    <record id="rule_parameter_sbu_2026" model="hr.rule.parameter.value">
+        <field name="rule_parameter_id" ref="rule_parameter_sbu"/>
+        <field name="date_from" eval="datetime(2026, 1, 1).date()"/>
+        <field name="parameter_value">482</field>
+    </record>
+
+    <!-- Aporte personal IESS: lo paga el empleado -->
+    <record id="rule_parameter_iess_personal" model="hr.rule.parameter">
+        <field name="name">Ecuador: Aporte personal IESS</field>
+        <field name="code">l10n_ec_iess_personal</field>
+        <field name="country_id" ref="base.ec"/>
+        <field name="description">Se descuenta al empleado sobre los ingresos aportables.</field>
+    </record>
+    <record id="rule_parameter_iess_personal_2025" model="hr.rule.parameter.value">
+        <field name="rule_parameter_id" ref="rule_parameter_iess_personal"/>
+        <field name="date_from" eval="datetime(2025, 1, 1).date()"/>
+        <field name="parameter_value">0.0945</field>
+    </record>
+
+    <!-- Aporte patronal IESS: 11.15 % IESS + 0.5 % SECAP + 0.5 % IECE -->
+    <record id="rule_parameter_iess_patronal" model="hr.rule.parameter">
+        <field name="name">Ecuador: Aporte patronal IESS</field>
+        <field name="code">l10n_ec_iess_patronal</field>
+        <field name="country_id" ref="base.ec"/>
+        <field name="description">Costo del empleador: 11.15 % IESS + 0.5 % SECAP + 0.5 % IECE.</field>
+    </record>
+    <record id="rule_parameter_iess_patronal_2025" model="hr.rule.parameter.value">
+        <field name="rule_parameter_id" ref="rule_parameter_iess_patronal"/>
+        <field name="date_from" eval="datetime(2025, 1, 1).date()"/>
+        <field name="parameter_value">0.1215</field>
+    </record>
+
+    <!-- Aporte patronal para pasantes (valor tomado de la configuracion actual; validar con contabilidad) -->
+    <record id="rule_parameter_iess_patronal_pasantias" model="hr.rule.parameter">
+        <field name="name">Ecuador: Aporte patronal pasantías</field>
+        <field name="code">l10n_ec_iess_patronal_pasantias</field>
+        <field name="country_id" ref="base.ec"/>
+    </record>
+    <record id="rule_parameter_iess_patronal_pasantias_2026" model="hr.rule.parameter.value">
+        <field name="rule_parameter_id" ref="rule_parameter_iess_patronal_pasantias"/>
+        <field name="date_from" eval="datetime(2026, 1, 1).date()"/>
+        <field name="parameter_value">0.1760</field>
+    </record>
+
+    <!-- Fondos de reserva: 8.33 % (1/12) desde el primer año de servicio -->
+    <record id="rule_parameter_fondos_reserva" model="hr.rule.parameter">
+        <field name="name">Ecuador: Fondos de reserva</field>
+        <field name="code">l10n_ec_fondos_reserva</field>
+        <field name="country_id" ref="base.ec"/>
+        <field name="description">8.33 % de los ingresos aportables (Art. 196 Ley de Seguridad Social).</field>
+    </record>
+    <record id="rule_parameter_fondos_reserva_2025" model="hr.rule.parameter.value">
+        <field name="rule_parameter_id" ref="rule_parameter_fondos_reserva"/>
+        <field name="date_from" eval="datetime(2025, 1, 1).date()"/>
+        <field name="parameter_value">0.08333333333333</field>
+    </record>
+</odoo>

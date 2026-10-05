@@ -1,23 +1,22 @@
 <?xml version="1.0" encoding="utf-8"?>
 <odoo>
-    <record id="l10n_ec_salary_rule_category_earnings" model="hr.salary.rule.category">
-        <field name="name">Ingresos</field>
-        <field name="code">EC_EARN</field>
+    <!-- Categorias propias de Ecuador. Cuelgan de ALW (Asignaciones) de hr_payroll,
+         asi categories['ALW'] suma gravables + no gravables automaticamente.
+         Las generales se reutilizan de hr_payroll: BASIC, DED, COMP, NET. -->
+
+    <record id="l10n_ec_category_alw_gravable" model="hr.salary.rule.category">
+        <field name="name">Asignaciones gravables</field>
+        <field name="code">EC_ALW_G</field>
+        <field name="country_id" ref="base.ec"/>
+        <field name="parent_id" ref="hr_payroll.ALW"/>
+        <field name="note">Ingresos aportables al IESS: horas extra, comisiones, bonos. Suman a la base del aporte personal, patronal y fondos de reserva.</field>
     </record>
-    <record id="l10n_ec_salary_rule_category_deductions" model="hr.salary.rule.category">
-        <field name="name">Descuentos</field>
-        <field name="code">EC_DED</field>
-    </record>
-    <record id="l10n_ec_salary_rule_category_information" model="hr.salary.rule.category">
-        <field name="name">Informativo</field>
-        <field name="code">EC_INFO</field>
-    </record>
-    <record id="l10n_ec_salary_rule_category_employer_cost" model="hr.salary.rule.category">
-        <field name="name">Costo empresa</field>
-        <field name="code">EC_COST</field>
-    </record>
-    <record id="l10n_ec_salary_rule_category_net" model="hr.salary.rule.category">
-        <field name="name">Neto</field>
-        <field name="code">EC_NET</field>
+
+    <record id="l10n_ec_category_alw_no_gravable" model="hr.salary.rule.category">
+        <field name="name">Asignaciones no gravables</field>
+        <field name="code">EC_ALW_NG</field>
+        <field name="country_id" ref="base.ec"/>
+        <field name="parent_id" ref="hr_payroll.ALW"/>
+        <field name="note">Ingresos que no aportan al IESS: décimos y fondos de reserva cuando se pagan mensualmente.</field>
     </record>
 </odoo>

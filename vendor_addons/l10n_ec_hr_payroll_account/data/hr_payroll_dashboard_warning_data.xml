@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <data noupdate="1">
+
+        <record id="hr_payroll_dashboard_warning_lines_without_account" model="hr.payroll.dashboard.warning">
+            <field name="name">Recibos con valores sin cuenta contable</field>
+            <field name="country_id" ref="base.ec"/>
+            <field name="color">1</field>
+            <field name="sequence">23</field>
+            <field name="evaluation_code">
+# Recibos de los ultimos lotes con lineas de ingreso, deduccion, aporte o neto cuya regla no tiene
+# cuenta de debito ni de credito: al validar, el asiento no cuadra y Odoo envia la diferencia
+# a la cuenta por defecto del diario.
+money_categories = ('BASIC', 'ALW', 'DED', 'COMP', 'NET')
+payslips = last_batches.slip_ids.filtered(lambda slip: slip.state != 'cancel' and slip.struct_id.country_id.code == 'EC')
+payslips_without_account = self.env['hr.payslip']
+for slip in payslips:
+    for line in slip.line_ids:
+        rule = line.salary_rule_id.with_company(slip.company_id)
+        category = line.category_id
+        if (line.total
+                and (category.code in money_categories or category.parent_id.code in money_categories)
+                and not rule.account_debit and not rule.account_credit):
+            payslips_without_account |= slip
+            break
+if payslips_without_account:
+    warning_count = len(payslips_without_account)
+    warning_records = payslips_without_account
+            </field>
+        </record>
+
+    </data>
+</odoo>

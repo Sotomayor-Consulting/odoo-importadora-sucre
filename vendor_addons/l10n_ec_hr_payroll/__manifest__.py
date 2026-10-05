@@ -1,23 +1,32 @@
 {
-    'name': 'Localizacion de nomina Ecuador',
-    'summary': 'Localizacion base de nomina para Ecuador',
-    'author': 'Sotomayor Consulting International',
-    'website': 'https://www.sotomayorconsulting.com',
+    'name': "l10n_ec_hr_payroll",
+    'summary': "Modulo de Nómina Ecuatoriana 2026",
+    'description': """
+Long description of module's purpose
+    """,
+    'author': "SCI",
+    'website': "https://www.sotomayorconsulting.com",
+    # Categories can be used to filter modules in modules listing
+    # Check https://github.com/odoo/odoo/blob/15.0/odoo/addons/base/data/ir_module_category_data.xml
+    # for the full list
     'category': 'Human Resources/Payroll',
-    'version': '19.0.1.0.0',
+    'version': '19.0.1.9.0',
     'license': 'LGPL-3',
-    'depends': ['hr_payroll', 'hr_payroll_holidays'],
+    # any module necessary for this one to work correctly
+    'depends': ['hr_payroll'],
+    # always loaded
     'data': [
-        'views/res_config_settings_views.xml',
-        'views/hr_contract_template_views.xml',
-        'views/hr_employee_views.xml',
-        'data/hr_rule_parameters_data.xml',
-        'data/hr_payslip_input_type_data.xml',
+        # 'security/ir.model.access.csv',
+        'data/hr_rule_parameter_data.xml',
         'data/hr_salary_rule_category_data.xml',
         'data/hr_payroll_structure_type_data.xml',
+        'views/report_payslip_templates.xml',
+        'views/hr_payroll_report.xml',
         'data/hr_payroll_structure_data.xml',
+        'data/hr_payslip_input_type_data.xml',
         'data/hr_salary_rule_data.xml',
+        'data/hr_payroll_dashboard_warning_data.xml',
+        'views/hr_employee_views.xml',
     ],
-    'installable': True,
-    'application': False,
 }
+
