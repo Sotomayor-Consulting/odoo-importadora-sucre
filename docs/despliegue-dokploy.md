@@ -26,6 +26,36 @@ odoo.conf           configuracion comun a todos los entornos (sin credenciales)
 env.example         plantilla de variables: lo que cambia por entorno
 ```
 
+Dentro de la imagen, la estructura es **la misma que Odoo.sh**:
+
+```
+/home/odoo/
+  .config/odoo/odoo.conf   configuracion comun (lo demas llega por entorno)
+  src/odoo/                fuente de Odoo (Community + Enterprise, un tarball)
+  src/user/                este repositorio, con sus mismos nombres:
+    custom_addons/           modulos propios del cliente
+    shared/                  submodulo odoo-sci-shared-addons
+  data/                    data_dir: filestore y sesiones (volumen odoo-data)
+```
+
+Dos diferencias deliberadas con Odoo.sh: no hay `src/enterprise/` (el tarball
+de odoo.com ya trae Community y Enterprise juntos) ni `logs/` (en Docker los
+logs van a la salida estandar y se ven en Dokploy).
+
+**Permisos.** El codigo y la configuracion son de `root` y de solo lectura para
+el proceso de Odoo, que corre como el usuario `odoo`. Ese usuario solo puede
+escribir en `data/` y en sus caches (`.cache/`, `.local/`). Un fallo que permita
+ejecutar codigo dentro de Odoo no puede reescribir el fuente. Consecuencia
+practica: **no se parchea codigo dentro de un contenedor en marcha**; cualquier
+cambio pasa por el repositorio y un despliegue.
+
+`odoo-bin` esta en el `PATH`, y `docker compose exec` hereda la configuracion
+del contenedor:
+
+```bash
+docker compose exec odoo odoo-bin shell
+```
+
 El fuente (`odoo_19.0+e.20260902.tar.gz`, ~427 MB) vive en un bucket **privado**
 de Cloudflare R2 y se descarga durante el build.
 
@@ -133,7 +163,7 @@ Como `docker compose exec` hereda el entorno del contenedor, cualquier comando
 de Odoo lanzado asi usa la misma configuracion sin pasar argumentos:
 
 ```bash
-docker compose exec odoo python3 /opt/odoo/odoo-bin shell
+docker compose exec odoo odoo-bin shell
 ```
 
 `R2_URL` se entrega al build como **secreto de BuildKit**, no como `ARG`.
@@ -237,6 +267,10 @@ con token estatico (Cloudflare Worker o Access) en lugar de una URL prefirmada.
 ---
 
 ## 7. Hechos verificados
+
+> Estas comprobaciones se hicieron con la imagen de septiembre de 2026, cuando
+> el fuente estaba en `/opt/odoo` y los addons en `/mnt`. Las rutas de esta
+> seccion son las de entonces; las vigentes estan en la seccion 1.
 
 Comprobados sobre la instalacion real, no deducidos de la documentacion:
 

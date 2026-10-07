@@ -19,3 +19,8 @@ __pycache__/
 *.log
 .vscode/
 .idea/
+
+# Temporales de editor
+*.swp
+*.swo
+*~

@@ -84,7 +84,7 @@ services:
     volumes:
       # Filestore y sesiones. Sin esto se pierden los adjuntos en cada
       # redespliegue y las sesiones se invalidan.
-      - odoo-data:/var/lib/odoo
+      - odoo-data:/home/odoo/data
     expose:
       - "8069"   # HTTP
       - "8072"   # websockets (chat, notificaciones en vivo)

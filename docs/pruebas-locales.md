@@ -108,7 +108,7 @@ Señales de que va bien:
 
 ```
 odoo: Odoo version 19.0+e-20260902
-odoo: addons paths: _NamespacePath(['/opt/odoo/odoo/addons', ...])
+odoo: addons paths: _NamespacePath(['/home/odoo/src/odoo/odoo/addons', ...])
 odoo: database: odoo@db:5432
 odoo.service.server: HTTP service (werkzeug) running on ...:8069
 ```
@@ -124,7 +124,7 @@ solo usa `expose`, porque alli enruta el proxy de Dokploy.
 Sin datos de demostracion:
 
 ```bash
-docker compose exec -T odoo python3 /opt/odoo/odoo-bin -d test -i base --stop-after-init
+docker compose exec -T odoo odoo-bin -d test -i base --stop-after-init
 ```
 
 `docker compose exec` hereda el entorno del contenedor, asi que Odoo ya conoce
@@ -136,7 +136,7 @@ Esa base no aparece en el navegador: el `dbfilter` solo deja ver la de
 
 Para instalar un modulo concreto, cambia `-i base` por el que quieras
 (`-i web_enterprise`, `-i l10n_ec`, ...). Verificado con `web_enterprise`
-y con un modulo propio en `/mnt/custom_addons`..
+y con un modulo propio en `custom_addons/`.
 
 ---
 
@@ -148,14 +148,14 @@ Que corre el fuente correcto y no el de la imagen oficial:
 docker compose exec -T odoo python3 -c "import odoo.cli, odoo.release; print(odoo.cli.__file__); print(odoo.release.version)"
 ```
 
-Debe responder `/opt/odoo/odoo/cli/__init__.py`. Si dijera
+Debe responder `/home/odoo/src/odoo/odoo/cli/__init__.py`. Si dijera
 `/usr/lib/python3/dist-packages/...`, el `rm -rf` del Dockerfile no surtio
 efecto y estarias corriendo una mezcla de dos versiones.
 
 Catalogo de modulos visible (deben ser 1476):
 
 ```bash
-docker compose exec -T odoo bash -lc "ls /opt/odoo/odoo/addons | wc -l"
+docker compose exec -T odoo bash -lc "ls /home/odoo/src/odoo/odoo/addons | wc -l"
 ```
 
 Estado de los modulos en la base:
@@ -197,7 +197,7 @@ descarga esta cacheada. Cambia `ARG ODOO_VERSION` en el Dockerfile, o fuerza
 9p de WSL colapsa con los 92.691 archivos del tarball. Trabaja siempre con el
 `.tar.gz`: son 427 MB en un solo archivo y se copia en segundos.
 
-**Odoo avisa `invalid addons directory '/mnt/custom_addons'` y lo descarta.**
+**Odoo avisa `invalid addons directory '/home/odoo/src/user/custom_addons'` y lo descarta.**
 Es **normal mientras no tengas modulos propios**: Odoo exige que un
 `addons_path` contenga al menos un subdirectorio con `__init__.py` y
 `__manifest__.py`, y si no lo descarta. No es un problema de permisos ni del

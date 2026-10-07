@@ -31,6 +31,10 @@ log() { printf '\033[1;34m[%s]\033[0m %s\n' "$(date +'%F %T')" "$*"; }
 die() { printf '\033[1;31mERROR:\033[0m %s\n' "$*" >&2; exit 1; }
 
 # --- Validacion -----------------------------------------------------------
+# data_dir de Odoo dentro del contenedor. Las imagenes anteriores al cambio a la
+# estructura tipo Odoo.sh usaban /var/lib/odoo.
+ODOO_DATA_DIR="${ODOO_DATA_DIR:-/home/odoo/data}"
+
 required="DB_CONTAINER ODOO_CONTAINER DB DB_USER DB_PASSWORD BACKUP_DIR"
 for v in $required; do
   eval "val=\${$v:-}"
@@ -64,9 +68,9 @@ log "  database.dump: $(du -h "$DEST/database.dump" | cut -f1)"
 # 2. Filestore
 # =========================================================================
 log "Copiando filestore..."
-if docker exec "$ODOO_CONTAINER" test -d "/var/lib/odoo/filestore/$DB"; then
+if docker exec "$ODOO_CONTAINER" test -d "$ODOO_DATA_DIR/filestore/$DB"; then
   docker exec "$ODOO_CONTAINER" \
-    tar czf - -C "/var/lib/odoo/filestore" "$DB" > "$DEST/filestore.tgz"
+    tar czf - -C "$ODOO_DATA_DIR/filestore" "$DB" > "$DEST/filestore.tgz"
   log "  filestore.tgz: $(du -h "$DEST/filestore.tgz" | cut -f1)"
 else
   log "  (sin filestore todavia; se crea vacio)"

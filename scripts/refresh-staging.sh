@@ -69,6 +69,12 @@ for v in $required; do
   [ -n "$val" ] || die "Falta la variable '$v' en $ENV_FILE"
 done
 
+# data_dir de Odoo dentro de cada contenedor. Son independientes porque durante
+# la migracion produccion puede seguir con la imagen antigua (/var/lib/odoo)
+# mientras staging ya usa la estructura tipo Odoo.sh.
+PROD_DATA_DIR="${PROD_DATA_DIR:-/home/odoo/data}"
+STAGING_DATA_DIR="${STAGING_DATA_DIR:-/home/odoo/data}"
+
 # --- Barreras de seguridad: NUNCA tocar produccion -----------------------
 [ "$STAGING_DB" != "$PROD_DB" ] \
   || die "STAGING_DB y PROD_DB son iguales ('$STAGING_DB'). Abortando."
@@ -125,9 +131,9 @@ log "    dump: $(du -h "$DUMP" | cut -f1)"
 # 2. Filestore de produccion
 # =========================================================================
 log "2/8 Copiando filestore de produccion..."
-if docker exec "$PROD_ODOO_CONTAINER" test -d "/var/lib/odoo/filestore/$PROD_DB"; then
+if docker exec "$PROD_ODOO_CONTAINER" test -d "$PROD_DATA_DIR/filestore/$PROD_DB"; then
   docker exec "$PROD_ODOO_CONTAINER" \
-    tar czf - -C "/var/lib/odoo/filestore" "$PROD_DB" > "$FILESTORE"
+    tar czf - -C "$PROD_DATA_DIR/filestore" "$PROD_DB" > "$FILESTORE"
   log "    filestore: $(du -h "$FILESTORE" | cut -f1)"
 else
   log "    (produccion aun no tiene filestore; se omite)"
@@ -173,12 +179,12 @@ log "    Restaurando filestore en staging..."
 # Siempre se limpia el filestore viejo de staging; solo se extrae si prod tenia.
 docker run --rm --volumes-from "$STAGING_ODOO_CONTAINER" \
   --entrypoint sh "$STAGING_ODOO_IMAGE" -c \
-  "rm -rf '/var/lib/odoo/filestore/$STAGING_DB' \
-   && mkdir -p '/var/lib/odoo/filestore/$STAGING_DB'"
+  "rm -rf '$STAGING_DATA_DIR/filestore/$STAGING_DB' \
+   && mkdir -p '$STAGING_DATA_DIR/filestore/$STAGING_DB'"
 if [ -s "$FILESTORE" ]; then
   docker run --rm -i --volumes-from "$STAGING_ODOO_CONTAINER" \
     --entrypoint sh "$STAGING_ODOO_IMAGE" -c \
-    "tar xzf - -C '/var/lib/odoo/filestore/$STAGING_DB' --strip-components=1" \
+    "tar xzf - -C '$STAGING_DATA_DIR/filestore/$STAGING_DB' --strip-components=1" \
     < "$FILESTORE"
 fi
 
@@ -188,11 +194,12 @@ fi
 log "5/8 Neutralizando la base de staging..."
 # Se lanza como proceso efimero que comparte la red del contenedor de BD de
 # staging (asi la alcanza en 127.0.0.1) y usa el addons_path del odoo.conf de
-# la imagen, para que corran los neutralize.sql de TODOS los modulos.
+# la imagen (lo localiza la variable ODOO_RC que la propia imagen define), para
+# que corran los neutralize.sql de TODOS los modulos.
 docker run --rm \
   --network "container:$STAGING_DB_CONTAINER" \
   --entrypoint python3 "$STAGING_ODOO_IMAGE" \
-  /opt/odoo/odoo-bin neutralize -c /etc/odoo/odoo.conf \
+  /home/odoo/src/odoo/odoo-bin neutralize \
     --db_host=127.0.0.1 --db_port=5432 \
     --db_user="$APP_DB_USER" --db_password="$APP_DB_PASSWORD" \
     -d "$STAGING_DB"
