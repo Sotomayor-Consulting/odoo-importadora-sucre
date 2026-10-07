@@ -17,11 +17,18 @@ ENV LANG=en_US.UTF-8 \
 
 # Dependencias de sistema. Los python3-* de Noble satisfacen los pines exactos
 # del requirements.txt, asi que el pip posterior apenas compila nada.
+#
+# La doc oficial instala esto con setup/debinstall.sh, que lee la lista
+# 'Depends' de debian/control. Aqui no se puede: el tarball de odoo.com no trae
+# ni ese script ni debian/control. La lista de abajo es su equivalente a mano y
+# hay que revisarla contra debian/control al cambiar de version de Odoo (ver
+# "Ritual de actualizacion" en docs/despliegue-dokploy.md).
 RUN apt-get update && apt-get install -y --no-install-recommends \
       ca-certificates curl gnupg xz-utils locales \
       postgresql-client \
       nodejs npm node-less \
       fonts-noto fonts-noto-cjk fonts-liberation \
+      fonts-inconsolata fonts-font-awesome fonts-roboto-unhinted gsfonts \
       python3 python3-pip python3-setuptools python3-wheel python3-dev \
       libldap2-dev libpq-dev libsasl2-dev libssl-dev libffi-dev \
       python3-babel python3-cbor2 python3-chardet python3-cryptography \
