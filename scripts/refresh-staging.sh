@@ -187,14 +187,33 @@ done
 # =========================================================================
 log "4/8 Restaurando la base en staging..."
 # Se restaura como el ROL DE APLICACION: los objetos quedan de su propiedad,
-# igual que en produccion. pg_restore puede emitir avisos ignorables.
+# igual que en produccion.
+#
+# Sin --jobs: el dump llega por la entrada estandar y pg_restore no admite la
+# restauracion en paralelo desde ahi; aborta sin cargar nada ("parallel restore
+# from standard input is not supported"). En serie tarda algo mas, pero carga.
 set +e
 docker exec -i -e PGPASSWORD="$APP_DB_PASSWORD" "$STAGING_DB_CONTAINER" \
   pg_restore -U "$APP_DB_USER" --no-owner --no-privileges \
-             --jobs=4 -d "$STAGING_DB" < "$DUMP"
+             -d "$STAGING_DB" < "$DUMP"
 rc=$?
 set -e
-[ "$rc" -eq 0 ] || log "    pg_restore termino con avisos (rc=$rc); continuo."
+
+# pg_restore devuelve un codigo distinto de cero tambien por avisos ignorables
+# (un comentario o una extension que el rol no puede tocar), asi que el codigo
+# solo no distingue "cargo con avisos" de "no cargo nada". Se comprueba el
+# resultado: una base de Odoo restaurada tiene modulos instalados.
+installed="$(stg_app psql -U "$APP_DB_USER" -d "$STAGING_DB" -tAc \
+  "SELECT count(*) FROM ir_module_module WHERE state = 'installed'" 2>/dev/null || true)"
+case "$installed" in
+  ''|*[!0-9]*|0)
+    die "La restauracion no cargo la base (pg_restore rc=$rc, modulos instalados: '${installed:-ninguno}'). Staging queda PARADO y sin datos." ;;
+esac
+if [ "$rc" -eq 0 ]; then
+  log "    Base restaurada: $installed modulos instalados."
+else
+  log "    Base restaurada con avisos de pg_restore (rc=$rc): $installed modulos instalados."
+fi
 
 log "    Restaurando filestore en staging..."
 # Siempre se limpia el filestore viejo de staging; solo se extrae si prod tenia.
