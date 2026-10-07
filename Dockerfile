@@ -4,8 +4,8 @@
 # python3-* equivalent distributed in Ubuntu 24.04 and Debian 12").
 FROM ubuntu:noble
 
-ARG ODOO_VERSION=19.0+e.20260902
-ARG ODOO_SHA256=41f56d2adda8ef4369745ad8c6964aa88aace210c2d6cd1c2b8529a1745b2e52
+ARG ODOO_VERSION=19.0+e.20261007
+ARG ODOO_SHA256=164c33a398dc4fe106a0ba19c3c7822f7efcc3afaf412c786bae3d35da253da4
 ARG WKHTMLTOPDF_URL=https://github.com/wkhtmltopdf/packaging/releases/download/0.12.6.1-3/wkhtmltox_0.12.6.1-3.jammy_amd64.deb
 ARG WKHTMLTOPDF_SHA1=967390a759707337b46d1c02452e2bb6b2dc6d59
 # Version mayor del SERVIDOR PostgreSQL (el servicio de Dokploy). El cliente de
