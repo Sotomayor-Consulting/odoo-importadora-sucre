@@ -26,13 +26,23 @@ Ver [despliegue-dokploy.md](despliegue-dokploy.md) para la arquitectura.
 cp env.example .env
 ```
 
-Edita `.env` con tus valores:
+Edita `.env` con tus valores. Las obligatorias (sin ellas `docker compose`
+se niega a arrancar y dice cual falta):
 
 ```
-POSTGRES_USER=odoo
+ENV_NAME=local
+DOMAIN=localhost
+DB_NAME=importadora_local
+POSTGRES_USER=odoo_admin
 POSTGRES_PASSWORD=una_clave_larga
+ODOO_DB_USER=odoo
+ODOO_DB_PASSWORD=otra_clave_larga
+ADMIN_PASSWD=una_tercera_clave
 R2_URL=https://...url-prefirmada-de-r2...
 ```
+
+En local conviene dejar `SKIP_DB_INIT` vacio para que el entrypoint cree la
+base sola.
 
 `.env` esta en `.gitignore`. No lo commitees.
 
@@ -114,12 +124,15 @@ solo usa `expose`, porque alli enruta el proxy de Dokploy.
 Sin datos de demostracion:
 
 ```bash
-docker compose exec -T odoo python3 -m odoo -c /etc/odoo/odoo.conf -d test -i base --stop-after-init --without-demo=all --db_host=db --db_user=odoo --db_password=TU_CLAVE
+docker compose exec -T odoo python3 /opt/odoo/odoo-bin -d test -i base --stop-after-init
 ```
 
-`docker compose exec` no pasa por el entrypoint, asi que hay que dar los
-`--db_*` a mano. En el arranque normal los inyecta `entrypoint.sh` desde las
-variables `HOST`, `PORT`, `USER` y `PASSWORD`.
+`docker compose exec` hereda el entorno del contenedor, asi que Odoo ya conoce
+la conexion (`PGHOST`, `PGUSER`, `PGPASSWORD`) sin pasar ningun `--db_*`. Solo
+se indica `-d test` para no usar la base por defecto (`PGDATABASE`).
+
+Esa base no aparece en el navegador: el `dbfilter` solo deja ver la de
+`DB_NAME`. Para abrirla, arranca con `DB_NAME=test` en `.env`.
 
 Para instalar un modulo concreto, cambia `-i base` por el que quieras
 (`-i web_enterprise`, `-i l10n_ec`, ...). Verificado con `web_enterprise`

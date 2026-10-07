@@ -24,6 +24,11 @@ services:
       retries: 10
     # Solo en la red interna: la base NUNCA se expone a la red compartida
     # del proxy. Es la razon de separar las dos redes.
+    logging:
+      driver: json-file
+      options:
+        max-size: "20m"
+        max-file: "5"
     networks:
       - internal
     restart: unless-stopped
@@ -37,20 +42,41 @@ services:
       db:
         condition: service_healthy
     environment:
-      # Consumidas por entrypoint.sh para construir los argumentos de
-      # conexion. Odoo se conecta con el ROL DE APLICACION, no con el
-      # superusuario. Ver el comentario en odoo.conf.
-      HOST: db
-      PORT: 5432
-      USER: ${ODOO_DB_USER}
-      PASSWORD: ${ODOO_DB_PASSWORD}
-      # Base que crea/sirve el stack (coincide con db_name/dbfilter en odoo.conf).
-      DB_NAME: ${DB_NAME:-importadora_sucre}
+      # Odoo 19 lee estas variables de forma nativa (ver odoo.conf); el
+      # entrypoint ya no construye argumentos. Los valores salen del panel de
+      # variables de Dokploy, distintos en cada entorno (ver env.example).
+      #
+      # --- Conexion y base. Odoo se conecta con el ROL DE APLICACION, no con
+      # el superusuario de Postgres.
+      PGHOST: ${DB_HOST:-db}
+      PGPORT: ${DB_PORT:-5432}
+      PGUSER: ${ODOO_DB_USER:?Define ODOO_DB_USER}
+      PGPASSWORD: ${ODOO_DB_PASSWORD:?Define ODOO_DB_PASSWORD}
+      # Sin valor por defecto a proposito: un entorno que olvide definirla debe
+      # fallar al desplegar, no apuntar en silencio a la base de otro entorno.
+      PGDATABASE: ${DB_NAME:?Define DB_NAME}
+      # Master password (gestion de bases). No se versiona.
+      ODOO_ADMIN_PASSWD: ${ADMIN_PASSWD:?Define ADMIN_PASSWD}
+      # --- Dimensionamiento. Los valores por defecto son los de STAGING (los
+      # mas conservadores): si produccion olvida definirlos va lenta, no rota.
+      # Con workers > 0 Odoo abre el puerto gevent 8072 (websocket).
+      ODOO_WORKERS: ${ODOO_WORKERS:-2}
+      ODOO_MAX_CRON_THREADS: ${ODOO_MAX_CRON_THREADS:-1}
+      # Bytes. Sobre el limite blando el worker se recicla al acabar la
+      # peticion; el duro lo mata en el acto.
+      ODOO_LIMIT_MEMORY_SOFT: ${ODOO_LIMIT_MEMORY_SOFT:-1073741824}
+      ODOO_LIMIT_MEMORY_HARD: ${ODOO_LIMIT_MEMORY_HARD:-1610612736}
+      # Segundos. Amplios para nomina, cierres contables e importaciones.
+      ODOO_LIMIT_TIME_CPU: ${ODOO_LIMIT_TIME_CPU:-600}
+      ODOO_LIMIT_TIME_REAL: ${ODOO_LIMIT_TIME_REAL:-1200}
+      ODOO_LIMIT_TIME_REAL_CRON: ${ODOO_LIMIT_TIME_REAL_CRON:-1800}
+      # Conexiones a Postgres por proceso. (workers + 2) x db_maxconn debe
+      # caber en el max_connections de Postgres.
+      ODOO_DB_MAXCONN: ${ODOO_DB_MAXCONN:-20}
+      # --- Operacion (las consume entrypoint.sh, no Odoo).
       # En staging va a "1": no inicializa la base (se restaura con
       # refresh-staging.sh). En produccion se deja vacio.
       SKIP_DB_INIT: ${SKIP_DB_INIT:-}
-      # Master password, inyectada por el entrypoint (no se versiona).
-      ADMIN_PASSWD: ${ADMIN_PASSWD}
       # Actualizacion de modulos en el arranque (aplica migraciones). Vacio en
       # operacion normal; se pone 'all' (o una lista) SOLO en el despliegue de
       # actualizacion y se vuelve a vaciar despues. Ver el ritual en la doc.
@@ -67,17 +93,22 @@ services:
     # 8072 (el resto va al 8069). El dominio principal (8069) lo configuras por
     # la UI de Dokploy; este bloque solo añade la ruta del websocket.
     # DOMAIN y el certresolver deben coincidir con los de tu Dokploy.
+    #
+    # Los nombres de router y servicio de Traefik son GLOBALES al servidor: si
+    # dos stacks declaran el mismo nombre con reglas distintas, Traefik descarta
+    # el router y el websocket deja de funcionar sin ningun error visible. Por
+    # eso llevan ENV_NAME (staging, prod...), unico por entorno.
     labels:
       - "traefik.enable=true"
       - "traefik.docker.network=dokploy-network"
-      - "traefik.http.routers.odoo-ws.rule=Host(`${DOMAIN}`) && PathPrefix(`/websocket`)"
-      - "traefik.http.routers.odoo-ws.entrypoints=websecure"
-      - "traefik.http.routers.odoo-ws.tls=true"
-      - "traefik.http.routers.odoo-ws.tls.certresolver=letsencrypt"
+      - "traefik.http.routers.importadora-${ENV_NAME:?Define ENV_NAME}-ws.rule=Host(`${DOMAIN:?Define DOMAIN}`) && PathPrefix(`/websocket`)"
+      - "traefik.http.routers.importadora-${ENV_NAME}-ws.entrypoints=websecure"
+      - "traefik.http.routers.importadora-${ENV_NAME}-ws.tls=true"
+      - "traefik.http.routers.importadora-${ENV_NAME}-ws.tls.certresolver=letsencrypt"
       # Prioridad alta para ganar sobre el router principal de '/'.
-      - "traefik.http.routers.odoo-ws.priority=100"
-      - "traefik.http.routers.odoo-ws.service=odoo-ws"
-      - "traefik.http.services.odoo-ws.loadbalancer.server.port=8072"
+      - "traefik.http.routers.importadora-${ENV_NAME}-ws.priority=100"
+      - "traefik.http.routers.importadora-${ENV_NAME}-ws.service=importadora-${ENV_NAME}-ws"
+      - "traefik.http.services.importadora-${ENV_NAME}-ws.loadbalancer.server.port=8072"
     healthcheck:
       # /web/health responde 200 cuando Odoo esta listo. start_period amplio
       # para cubrir la inicializacion de la base en el primer arranque.
@@ -86,6 +117,23 @@ services:
       timeout: 5s
       retries: 6
       start_period: 180s
+    # Techo de recursos del contenedor. Staging y produccion comparten VPS: sin
+    # esto, una prueba pesada en staging puede dejar sin memoria a produccion.
+    # Por defecto, valores de staging.
+    mem_limit: ${ODOO_MEM_LIMIT:-2g}
+    cpus: ${ODOO_CPUS:-1.5}
+    # Odoo lanza subprocesos (wkhtmltopdf). Como PID 1 no recoge los huerfanos;
+    # un init minimo lo hace y reenvia las señales.
+    init: true
+    # Margen para que los workers terminen la peticion en curso al redesplegar
+    # (por defecto Docker mata el contenedor a los 10 s).
+    stop_grace_period: 60s
+    # Sin limite, el log del contenedor crece hasta llenar el disco.
+    logging:
+      driver: json-file
+      options:
+        max-size: "20m"
+        max-file: "5"
     networks:
       - internal          # para hablar con la base
       - dokploy-network   # para que el proxy lo alcance
