@@ -7,6 +7,8 @@ enterprise/
 odoo/
 
 .git
+# El submodulo shared/ trae su propio .git (un archivo que apunta al repo padre).
+**/.git
 .gitignore
 .env
 docker-compose*.yml

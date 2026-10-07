@@ -15,7 +15,8 @@ cambia a menudo:
 
 ```
 custom_addons/      modulos propios de este cliente
-vendor_addons/      librería compartida de Sotomayor Consulting (git subtree)
+shared/             modulos compartidos de Sotomayor Consulting (submodulo de git,
+                    repo odoo-sci-shared-addons, rama 19.0)
 docs/               esta documentacion
 .dockerignore       Docker NO respeta .gitignore: sin esto el contexto de
                     build pasaria de 2 MB a 410 MB
@@ -55,6 +56,43 @@ El precio es mantener la lista de dependencias del sistema. `entrypoint.sh` es
 propio y replica el comportamiento del oficial: construye los argumentos de
 conexion desde `HOST`, `PORT`, `USER` y `PASSWORD`, y solo los añade si no
 estan ya en `odoo.conf`.
+
+---
+
+## 1.bis Modulos compartidos (submodulo `shared/`)
+
+`shared/` no es una carpeta normal: es un **submodulo de git** que apunta a un
+commit concreto del repo `odoo-sci-shared-addons` (rama `19.0`). Este repo solo
+guarda ese puntero, no el codigo.
+
+**Clonar.** Un `git clone` normal deja `shared/` vacio:
+
+```bash
+git clone --recurse-submodules git@github.com:Sotomayor-Consulting/odoo-importadora-sucre.git
+# o, en un clon ya hecho:
+git submodule update --init
+```
+
+**Dokploy.** En la configuracion del proveedor git del servicio hay que activar
+la opcion de **submodulos**, y la credencial (GitHub App o deploy key) necesita
+lectura sobre los DOS repos. Si falta, el build falla con
+`FATAL: shared/ esta vacio` (red de seguridad del Dockerfile).
+
+La URL en `.gitmodules` es relativa (`../odoo-sci-shared-addons.git`): hereda el
+protocolo del repo padre, asi que sirve igual por SSH que por HTTPS.
+
+**Actualizar los modulos compartidos.** Nunca se editan aqui dentro. El cambio
+se hace en `odoo-sci-shared-addons` y aqui se sube el puntero, por PR a
+`staging`:
+
+```bash
+git -C shared fetch origin && git -C shared checkout origin/19.0
+git add shared && git commit -m "chore(shared): subir puntero a <commit>"
+```
+
+Asi una mejora hecha para otro cliente no llega a este hasta que alguien lo
+decide y lo prueba en staging. Si el cambio trae version nueva de un modulo,
+hay que actualizarlo en el despliegue (ver seccion 10).
 
 ---
 
