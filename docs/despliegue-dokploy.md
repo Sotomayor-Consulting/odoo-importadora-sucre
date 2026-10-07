@@ -243,10 +243,24 @@ Tres o cuatro veces al año:
 3. Subirlo al bucket privado de R2.
 4. Generar una `R2_URL` prefirmada nueva y actualizarla en Dokploy.
 5. En el `Dockerfile`, actualizar `ODOO_VERSION` y `ODOO_SHA256`.
-6. Commit y push. Dokploy reconstruye y despliega.
+6. Revisar las dependencias de sistema (ver abajo).
+7. Commit y push. Dokploy reconstruye y despliega.
 
 Si algo falla, se vuelve al commit anterior: el `Dockerfile` describe por
 completo la version que corre.
+
+**Dependencias de sistema.** La instalacion oficial desde fuente las resuelve
+con `setup/debinstall.sh`, que instala lo que lista el campo `Depends` de
+`debian/control`. El tarball de odoo.com no trae ninguno de los dos archivos,
+asi que el `Dockerfile` lleva esa lista a mano. Al cambiar de version hay que
+compararla con la del repositorio de Odoo, en la rama correspondiente:
+
+<https://github.com/odoo/odoo/blob/19.0/debian/control>
+
+Las librerias de Python que falten las cubre el `pip install -r
+requirements.txt` posterior. Lo que `pip` **no** puede cubrir son los paquetes
+que no son de Python, sobre todo las **fuentes** (`fonts-*`, `gsfonts`): si
+falta una, los PDF se generan igual pero con otra tipografia, sin ningun error.
 
 ---
 
