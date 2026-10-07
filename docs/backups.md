@@ -104,8 +104,8 @@ docker exec -i -e PGPASSWORD=... "$DBC" \
 
 # 4) Restaurar el filestore.
 docker run --rm -i --volumes-from "$ODC" --entrypoint sh <imagen-odoo> -c \
-  "rm -rf /var/lib/odoo/filestore/$DB && mkdir -p /var/lib/odoo/filestore/$DB \
-   && tar xzf - -C /var/lib/odoo/filestore/$DB --strip-components=1" < ./restore/filestore.tgz
+  "rm -rf /home/odoo/data/filestore/$DB && mkdir -p /home/odoo/data/filestore/$DB \
+   && tar xzf - -C /home/odoo/data/filestore/$DB --strip-components=1" < ./restore/filestore.tgz
 
 # 5) Arrancar Odoo.
 docker start "$ODC"

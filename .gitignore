@@ -28,6 +28,10 @@ sessions/
 *.log
 
 # --- Editores / SO ---
+# Temporales de vim/emacs: aparecen al tener un archivo abierto.
+*.swp
+*.swo
+*~
 .vscode/
 .idea/
 .DS_Store

@@ -15,6 +15,8 @@ done
 : "${PGPORT:=5432}"
 export PGPORT
 
+ODOO_BIN=/home/odoo/src/odoo/odoo-bin
+
 # Sin dbfilter explicito, se sirve unicamente la base configurada.
 : "${ODOO_DBFILTER:=^${PGDATABASE}\$}"
 export ODOO_DBFILTER
@@ -45,7 +47,7 @@ if [ -z "${SKIP_DB_INIT:-}" ]; then
   fi
   if [ "$exists" != "1" ]; then
     echo "Base '$PGDATABASE' inexistente: inicializando (modulo base, sin demo)..."
-    python3 /opt/odoo/odoo-bin -c "$ODOO_RC" -d "$PGDATABASE" -i base --stop-after-init
+    python3 "$ODOO_BIN" -c "$ODOO_RC" -d "$PGDATABASE" -i base --stop-after-init
   fi
 fi
 
@@ -58,7 +60,7 @@ fi
 # normales no repitan la actualizacion (es lenta y no debe correr en cada boot).
 if [ -n "${UPGRADE:-}" ]; then
   echo "Actualizando modulos ($UPGRADE) en '$PGDATABASE'..."
-  python3 /opt/odoo/odoo-bin -c "$ODOO_RC" -d "$PGDATABASE" -u "$UPGRADE" --stop-after-init
+  python3 "$ODOO_BIN" -c "$ODOO_RC" -d "$PGDATABASE" -u "$UPGRADE" --stop-after-init
 fi
 
-exec python3 /opt/odoo/odoo-bin -c "$ODOO_RC" "$@"
+exec python3 "$ODOO_BIN" -c "$ODOO_RC" "$@"
