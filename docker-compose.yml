@@ -10,7 +10,9 @@ services:
     build:
       context: .
       secrets:
-        - r2_url
+        - r2_access_key_id
+        - r2_secret_access_key
+        - r2_object_url
     environment:
       # Odoo 19 lee estas variables de forma nativa (ver odoo.conf); el
       # entrypoint ya no construye argumentos. Los valores salen del panel de
@@ -112,14 +114,18 @@ services:
       - dokploy-network
     restart: unless-stopped
 
-# La URL prefirmada de R2 se toma de la variable R2_URL que define Dokploy.
-# Verificado: Compose la resuelve desde el archivo .env que Dokploy genera,
-# sin necesidad de exportarla en el shell.
+# Descarga del fuente de Odoo desde R2 durante el build (ver Dockerfile). Los
+# valores salen de las variables que define Dokploy; Compose las resuelve desde
+# el archivo .env que Dokploy genera.
 # Nota: los secretos por 'environment' solo funcionan con 'docker compose'
 # (modo Compose de Dokploy), NO con 'docker stack deploy' (Swarm).
 secrets:
-  r2_url:
-    environment: R2_URL
+  r2_access_key_id:
+    environment: R2_ACCESS_KEY_ID
+  r2_secret_access_key:
+    environment: R2_SECRET_ACCESS_KEY
+  r2_object_url:
+    environment: R2_OBJECT_URL
 
 networks:
   # Red compartida donde vive el proxy (Traefik) de Dokploy. Es "external":

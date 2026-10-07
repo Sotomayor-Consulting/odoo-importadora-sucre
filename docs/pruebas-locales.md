@@ -12,7 +12,7 @@ Ver [despliegue-dokploy.md](despliegue-dokploy.md) para la arquitectura.
 
 - Docker con BuildKit (por defecto desde Docker 23).
 - ~10 GB libres: la imagen ocupa ~5.9 GB y el build necesita margen.
-- Acceso al tarball de Odoo: por URL prefirmada de R2, o el archivo en local.
+- Acceso al tarball de Odoo: con el token de R2 de solo lectura, o el archivo en local.
 
 > **No instales Dokploy en WSL para esto.** Activa Docker Swarm y se adueña
 > del host, ademas de que la IP de WSL cambia en cada reinicio. Para probar en
@@ -37,7 +37,9 @@ DB_NAME=importadora_local
 ODOO_DB_USER=odoo
 ODOO_DB_PASSWORD=una_clave_larga
 ADMIN_PASSWD=una_tercera_clave
-R2_URL=https://...url-prefirmada-de-r2...
+R2_ACCESS_KEY_ID=...
+R2_SECRET_ACCESS_KEY=...
+R2_OBJECT_URL=https://TU_ACCOUNT_ID.r2.cloudflarestorage.com/TU_BUCKET/odoo-19.0-e-20260902.tar.gz
 ```
 
 En local conviene dejar `SKIP_DB_INIT` vacio para que el entrypoint cree la
@@ -45,11 +47,8 @@ base sola.
 
 `.env` esta en `.gitignore`. No lo commitees.
 
-Generar la URL prefirmada:
-
-```bash
-aws s3 presign s3://TU_BUCKET/odoo_19.0+e.20260902.tar.gz --endpoint-url https://TU_ACCOUNT_ID.r2.cloudflarestorage.com --expires-in 3600
-```
+El token y la URL son los mismos que en el servidor; ver
+[despliegue-dokploy.md](despliegue-dokploy.md), seccion 6.
 
 ---
 
@@ -77,10 +76,13 @@ services:
 Y en `.env`:
 
 ```
-R2_URL=http://127.0.0.1:8899/odoo_19.0%2Be.20260902.tar.gz
+R2_OBJECT_URL=http://127.0.0.1:8899/odoo-19.0-e-20260902.tar.gz
+R2_ACCESS_KEY_ID=local
+R2_SECRET_ACCESS_KEY=local
 ```
 
-> El `+` del nombre debe ir como `%2B` en la URL.
+El servidor local ignora la firma, asi que las dos claves pueden ser cualquier
+texto; solo no pueden estar vacias. Renombra antes el archivo sin el `+`.
 
 `docker-compose.override.yml` esta en `.gitignore` a proposito: si se
 versionara, Dokploy lo fusionaria en produccion y desplegaria con red del host.
@@ -191,8 +193,12 @@ docker history --no-trunc $(docker compose images -q odoo) | grep -c r2.cloudfla
 ## 7. Problemas frecuentes
 
 **El build falla en el `curl` con exit 2.** No hay red hacia el origen. Si
-sirves el archivo en local, falta `network: host` en el override. Si usas R2,
-la URL prefirmada caduco (maximo 7 dias): genera una nueva.
+sirves el archivo en local, falta `network: host` en el override.
+
+**El build falla en el `curl` con exit 22.** R2 rechazo la peticion: `403` si el
+token no tiene permiso sobre ese bucket o la URL esta mal, `404` si el objeto no
+existe con ese nombre. Prueba el token fuera del build (seccion 6 de
+[despliegue-dokploy.md](despliegue-dokploy.md)).
 
 **El build falla con `sha256sum: WARNING: 1 computed checksum did NOT match`.**
 El `ARG ODOO_SHA256` del Dockerfile no corresponde al tarball descargado.
