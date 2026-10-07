@@ -87,8 +87,12 @@ STAGING_DATA_DIR="${STAGING_DATA_DIR:-/home/odoo/data}"
 # SERVICIO. Hace falta lo segundo con las bases de datos nativas de Dokploy:
 # corren como servicio de Swarm y su contenedor se llama
 # "<servicio>.1.<id aleatorio>", que cambia en cada reinicio.
+#
+# 'docker container inspect' y no 'docker inspect' a secas: este ultimo acepta
+# cualquier tipo de objeto y da por bueno el nombre de un SERVICIO, con lo que
+# el nombre quedaria sin traducir y los 'docker exec' posteriores fallarian.
 resolve_container() {
-  if docker inspect "$1" >/dev/null 2>&1; then
+  if docker container inspect "$1" >/dev/null 2>&1; then
     printf '%s\n' "$1"
     return 0
   fi
