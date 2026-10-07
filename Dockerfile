@@ -23,12 +23,28 @@ ENV LANG=en_US.UTF-8 \
 # 16; de aqui sale el de PG_MAJOR. Es lo mismo que hace la imagen oficial de
 # Odoo. La clave se guarda aparte y el repositorio queda atado a ella
 # (signed-by), sin confiar en ella para ningun otro origen.
+#
+# PGDG publica tambien versiones mas nuevas de paquetes que Ubuntu ya trae, y
+# apt elige siempre la mas nueva. Sin acotarlo, se instalaba python3-psycopg2
+# 2.9.10 de PGDG en lugar del 2.9.9 de Ubuntu; como requirements.txt de Odoo
+# fija psycopg2==2.9.9, pip intentaba recompilarlo y el build fallaba por falta
+# de compilador. El archivo de preferencias deja PGDG por debajo de Ubuntu
+# (prioridad 100) salvo para lo que se quiere de alli: el cliente y su libpq.
 RUN apt-get update && apt-get install -y --no-install-recommends ca-certificates curl \
  && install -d /usr/share/postgresql-common/pgdg \
  && curl -fsSL -o /usr/share/postgresql-common/pgdg/apt.postgresql.org.asc \
       https://www.postgresql.org/media/keys/ACCC4CF8.asc \
  && echo "deb [signed-by=/usr/share/postgresql-common/pgdg/apt.postgresql.org.asc] https://apt.postgresql.org/pub/repos/apt noble-pgdg main" \
       > /etc/apt/sources.list.d/pgdg.list \
+ && printf '%s\n' \
+      'Package: *' \
+      'Pin: origin apt.postgresql.org' \
+      'Pin-Priority: 100' \
+      '' \
+      "Package: postgresql-client-${PG_MAJOR} postgresql-client-common libpq5 libpq-dev" \
+      'Pin: origin apt.postgresql.org' \
+      'Pin-Priority: 990' \
+      > /etc/apt/preferences.d/pgdg \
  && rm -rf /var/lib/apt/lists/*
 
 # Dependencias de sistema. Los python3-* de Noble satisfacen los pines exactos
@@ -59,6 +75,10 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
       python3-serial python3-slugify python3-stdnum python3-tz python3-usb \
       python3-vobject python3-watchdog python3-werkzeug python3-xlrd \
       python3-xlsxwriter python3-xlwt python3-zeep \
+ # Red de seguridad del punto anterior: si psycopg2 no es el de Ubuntu, que el
+ # build falle aqui con un mensaje claro y no mas tarde dentro de pip.
+ && { dpkg-query -W -f='${Version}' python3-psycopg2 | grep -q '^2\.9\.9-' \
+      || { echo 'FATAL: python3-psycopg2 no es el 2.9.9 de Ubuntu (revisar /etc/apt/preferences.d/pgdg)'; exit 1; }; } \
  && npm install -g rtlcss \
  && sed -i "s/^# *en_US.UTF-8/en_US.UTF-8/" /etc/locale.gen && locale-gen \
  && rm -rf /var/lib/apt/lists/* /root/.npm
