@@ -154,7 +154,8 @@ fallar el despliegue si faltan:
 | `ODOO_DB_USER` / `ODOO_DB_PASSWORD` | *(propias)* | *(propias)* | Rol de aplicacion |
 | `ADMIN_PASSWD` | *(propia)* | *(propia)* | Master password de Odoo |
 | `DB_HOST` | host interno de su Postgres | host interno de su Postgres | Servicio de base de datos |
-| `R2_URL` | URL prefirmada | URL prefirmada | Descarga del fuente en el build |
+| `R2_ACCESS_KEY_ID` / `R2_SECRET_ACCESS_KEY` | token de solo lectura | el mismo | Descarga del fuente en el build |
+| `R2_OBJECT_URL` | URL del tarball | la misma | Descarga del fuente en el build |
 
 Las de dimensionamiento (`ODOO_WORKERS`, `ODOO_LIMIT_MEMORY_*`,
 `ODOO_MEM_LIMIT`, `ODOO_CPUS`) tienen por defecto los valores de **staging**.
@@ -167,18 +168,10 @@ de Odoo lanzado asi usa la misma configuracion sin pasar argumentos:
 docker compose exec odoo odoo-bin shell
 ```
 
-`R2_URL` se entrega al build como **secreto de BuildKit**, no como `ARG`.
-Verificado: no aparece en `docker history` ni en ninguna capa de la imagen.
-Verificado tambien que Compose la resuelve desde el archivo `.env` que genera
-Dokploy, sin necesidad de exportarla.
-
-Generar la URL prefirmada:
-
-```bash
-aws s3 presign s3://TU_BUCKET/odoo_19.0+e.20260902.tar.gz \
-  --endpoint-url https://TU_ACCOUNT_ID.r2.cloudflarestorage.com \
-  --expires-in 604800
-```
+Las tres variables `R2_*` se entregan al build como **secretos de BuildKit**,
+no como `ARG`: no aparecen en `docker history` ni en ninguna capa de la imagen.
+Compose las resuelve desde el archivo `.env` que genera Dokploy. Como crear el
+token y subir el tarball esta en la seccion 6.
 
 > **Nunca** imprimas el secreto dentro de un `RUN` (`echo`, `cat`): apareceria
 > en los logs de build de Dokploy.
@@ -234,9 +227,9 @@ comando `RUN`, asi que cambiarlo invalida la cache y fuerza la descarga.
 Tres o cuatro veces al año:
 
 1. Descargar el tarball nuevo desde tu cuenta de odoo.com.
-2. `sha256sum odoo_19.0+e.AAAAMMDD.tar.gz` y anotar el resultado.
-3. Subirlo al bucket privado de R2.
-4. Generar una `R2_URL` prefirmada nueva y actualizarla en Dokploy.
+2. `sha256sum` del archivo y anotar el resultado.
+3. Subirlo al bucket privado de R2 con un nombre sin `+` (seccion 6).
+4. Actualizar `R2_OBJECT_URL` en Dokploy, en los dos entornos.
 5. En el `Dockerfile`, actualizar `ODOO_VERSION` y `ODOO_SHA256`.
 6. Revisar las dependencias de sistema (ver abajo).
 7. Commit y push. Dokploy reconstruye y despliega.
@@ -259,19 +252,64 @@ falta una, los PDF se generan igual pero con otra tipografia, sin ningun error.
 
 ---
 
-## 6. Caducidad de la URL prefirmada
+## 6. El fuente de Odoo en R2
 
-Las URL prefirmadas de S3/R2 caducan como maximo a los **7 dias**.
+El build descarga el tarball de un bucket **privado** de Cloudflare R2 con un
+**token de solo lectura que no caduca**. curl firma la peticion con ese token
+(AWS SigV4, el protocolo de la API S3 que habla R2).
 
-En el dia a dia da igual, porque los redespliegues usan la cache. Pero un build
-**sin cache** con la URL caducada falla. Ocurre al cambiar `ODOO_VERSION`, al
-migrar a un servidor nuevo, o si se purga la cache de Docker.
+Antes se usaba una URL prefirmada, que caduca como maximo a los 7 dias: cada
+reconstruccion sin cache (version nueva de Odoo, servidor nuevo, cache purgada)
+exigia regenerarla a mano. Con el token ese paso desaparece.
 
-Regla practica: **refrescar `R2_URL` es el paso previo a cualquier
-reconstruccion completa.**
+### Crear el token (una vez)
 
-Si esto llega a molestar, la alternativa es servir el archivo desde un endpoint
-con token estatico (Cloudflare Worker o Access) en lugar de una URL prefirmada.
+En Cloudflare: **R2 > Manage API Tokens > Create API Token**.
+
+| Ajuste | Valor |
+|---|---|
+| Permissions | **Object Read only** |
+| Specify bucket(s) | solo el bucket del tarball |
+| TTL | **Forever** |
+
+Cloudflare muestra el *Access Key ID* y el *Secret Access Key* **una sola vez**.
+Son `R2_ACCESS_KEY_ID` y `R2_SECRET_ACCESS_KEY` en Dokploy.
+
+Que sea de solo lectura y de un unico bucket limita el daño si se filtra: da
+acceso a descargar el tarball y a nada mas. No reutilizar aqui el token de los
+backups, que necesita escribir.
+
+### Subir un tarball
+
+El nombre del objeto **no debe llevar `+` ni espacios**. El archivo de odoo.com
+se llama `odoo_19.0+e.AAAAMMDD.tar.gz`; se sube con un nombre plano:
+
+```bash
+aws s3 cp odoo_19.0+e.20260902.tar.gz \
+  s3://TU_BUCKET/odoo-19.0-e-20260902.tar.gz \
+  --endpoint-url https://TU_ACCOUNT_ID.r2.cloudflarestorage.com
+```
+
+(Esa subida se hace con credenciales de escritura propias, no con el token de
+solo lectura.) La URL resultante es `R2_OBJECT_URL`:
+
+```
+https://TU_ACCOUNT_ID.r2.cloudflarestorage.com/TU_BUCKET/odoo-19.0-e-20260902.tar.gz
+```
+
+### Probar el token antes de desplegar
+
+Desde cualquier maquina con curl 7.75 o posterior:
+
+```bash
+curl -fsS -o /dev/null -w '%{http_code} %{size_download} bytes\n' \
+  --aws-sigv4 "aws:amz:auto:s3" --user "ACCESS_KEY_ID:SECRET_ACCESS_KEY" \
+  "https://TU_ACCOUNT_ID.r2.cloudflarestorage.com/TU_BUCKET/odoo-19.0-e-20260902.tar.gz"
+```
+
+Debe responder `200` y el tamaño del archivo. Un `403` indica token sin permiso
+sobre ese bucket o URL mal escrita; un `404`, que el objeto no existe con ese
+nombre.
 
 ---
 

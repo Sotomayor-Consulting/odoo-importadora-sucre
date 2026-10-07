@@ -108,14 +108,30 @@ RUN groupadd -g 101 odoo \
  && chown root:root /home/odoo && chmod 755 /home/odoo \
  && chown odoo:odoo /home/odoo/data /home/odoo/.cache /home/odoo/.local
 
-# La URL prefirmada llega como secreto: no queda en ninguna capa ni en
-# "docker history". Nunca se imprime, apareceria en los logs de build.
+# El tarball vive en un bucket PRIVADO de Cloudflare R2. Se descarga con un
+# token de R2 de solo lectura: curl firma la peticion (AWS SigV4, el protocolo
+# de la API S3 que habla R2). A diferencia de una URL prefirmada, el token no
+# caduca, asi que una reconstruccion sin cache no depende de regenerar nada.
+#
+# Las tres piezas llegan como secretos de BuildKit: no quedan en ninguna capa
+# ni en "docker history". Las credenciales se pasan a curl por su entrada
+# estandar (-K -), no como argumento, para que tampoco se vean en la lista de
+# procesos. Nunca se imprimen: apareceria en los logs de build.
+#
 # --strip-components=1 descarta el directorio con fecha, dejando una ruta
 # estable entre versiones. --no-same-owner: como root, tar conservaria el
 # dueño grabado en el archivo; se fuerza root.
-RUN --mount=type=secret,id=r2_url \
+RUN --mount=type=secret,id=r2_access_key_id \
+    --mount=type=secret,id=r2_secret_access_key \
+    --mount=type=secret,id=r2_object_url \
     echo "Compilando Odoo ${ODOO_VERSION}" \
- && curl -fsSL "$(cat /run/secrets/r2_url)" -o /tmp/src.tgz \
+ && for s in r2_access_key_id r2_secret_access_key r2_object_url; do \
+      [ -s "/run/secrets/$s" ] || { echo "FATAL: falta el secreto de build $s (ver env.example)"; exit 1; }; \
+    done \
+ && printf 'user = "%s:%s"\n' \
+      "$(cat /run/secrets/r2_access_key_id)" "$(cat /run/secrets/r2_secret_access_key)" \
+    | curl -fsSL -K - --aws-sigv4 "aws:amz:auto:s3" \
+        "$(cat /run/secrets/r2_object_url)" -o /tmp/src.tgz \
  && echo "${ODOO_SHA256}  /tmp/src.tgz" | sha256sum -c - \
  && tar -xzf /tmp/src.tgz -C /home/odoo/src/odoo --strip-components=1 --no-same-owner \
  && rm /tmp/src.tgz
