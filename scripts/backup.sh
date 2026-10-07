@@ -40,8 +40,23 @@ for v in $required; do
   eval "val=\${$v:-}"
   [ -n "$val" ] || die "Falta la variable '$v' en $ENV_FILE"
 done
-docker inspect "$DB_CONTAINER"   >/dev/null 2>&1 || die "Contenedor no encontrado: $DB_CONTAINER"
-docker inspect "$ODOO_CONTAINER" >/dev/null 2>&1 || die "Contenedor no encontrado: $ODOO_CONTAINER"
+# Los contenedores se pueden indicar por su nombre exacto o por el nombre del
+# SERVICIO. Hace falta lo segundo con las bases de datos nativas de Dokploy:
+# corren como servicio de Swarm y su contenedor se llama
+# "<servicio>.1.<id aleatorio>", que cambia en cada reinicio.
+resolve_container() {
+  if docker inspect "$1" >/dev/null 2>&1; then
+    printf '%s\n' "$1"
+    return 0
+  fi
+  docker ps --filter "name=^$1\\." --format '{{.Names}}' | head -n 1
+}
+for v in DB_CONTAINER ODOO_CONTAINER; do
+  eval "name=\$$v"
+  found="$(resolve_container "$name")"
+  [ -n "$found" ] || die "Contenedor o servicio no encontrado: $name"
+  eval "$v=\$found"
+done
 
 # --- Evitar solapes (un backup a la vez) ----------------------------------
 mkdir -p "$BACKUP_DIR"

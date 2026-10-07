@@ -21,7 +21,8 @@ docs/               esta documentacion
 .dockerignore       Docker NO respeta .gitignore: sin esto el contexto de
                     build pasaria de 2 MB a 410 MB
 Dockerfile          construye la imagen, descarga el fuente desde R2
-docker-compose.yml  servicios odoo + postgres
+docker-compose.yml  servicio odoo (la base es un servicio aparte de Dokploy)
+docker-compose.local.yml  Postgres y puertos para pruebas en local
 odoo.conf           configuracion comun a todos los entornos (sin credenciales)
 env.example         plantilla de variables: lo que cambia por entorno
 ```
@@ -152,7 +153,7 @@ fallar el despliegue si faltan:
 | `DB_NAME` | `importadora_sucre` | `importadora_staging` | Base que sirve el stack |
 | `ODOO_DB_USER` / `ODOO_DB_PASSWORD` | *(propias)* | *(propias)* | Rol de aplicacion |
 | `ADMIN_PASSWD` | *(propia)* | *(propia)* | Master password de Odoo |
-| `POSTGRES_USER` / `POSTGRES_PASSWORD` | *(propias)* | *(propias)* | Superusuario de Postgres |
+| `DB_HOST` | host interno de su Postgres | host interno de su Postgres | Servicio de base de datos |
 | `R2_URL` | URL prefirmada | URL prefirmada | Descarga del fuente en el build |
 
 Las de dimensionamiento (`ODOO_WORKERS`, `ODOO_LIMIT_MEMORY_*`,
@@ -184,26 +185,20 @@ aws s3 presign s3://TU_BUCKET/odoo_19.0+e.20260902.tar.gz \
 
 ---
 
-## 2.bis Redes
+## 2.bis Base de datos y red
 
-El stack usa dos redes, y la separacion es deliberada:
+El `docker-compose.yml` lleva **solo Odoo**. PostgreSQL es un servicio nativo de
+Dokploy, uno por entorno; como crearlo, darle su rol y ajustarlo esta en
+[postgres-dokploy.md](postgres-dokploy.md). Odoo lo alcanza por `DB_HOST`.
 
-| Red | Quien la crea | Quien la usa |
-|---|---|---|
-| `internal` | Compose | `odoo` y `db` |
-| `dokploy-network` | **Dokploy** (externa) | solo `odoo` |
-
-`dokploy-network` esta declarada como `external: true`: Compose **no** la crea y
-falla el `up` si no existe. En el servidor la crea Dokploy para su proxy. En
-local hay que crearla a mano:
+El stack usa una unica red, `dokploy-network`, declarada como `external: true`:
+Compose **no** la crea y falla el `up` si no existe. En el servidor la crea
+Dokploy; por ella llega el proxy (Traefik) y se alcanza la base. En local hay
+que crearla a mano:
 
 ```bash
 docker network create dokploy-network
 ```
-
-**La base de datos no esta en la red compartida.** Solo `odoo` la alcanza, y
-solo `odoo` es alcanzable por el proxy. Postgres nunca queda expuesto a los
-demas servicios que Dokploy tenga en ese host.
 
 Nota: `docker compose config` **no** detecta que la red externa falte; el error
 aparece al hacer `up`.
@@ -319,8 +314,9 @@ Comprobados sobre la instalacion real, no deducidos de la documentacion:
   real y revisar que la URL no aparezca en los logs de build.
 - **Websockets.** El puerto 8072 esta expuesto; comprobar que el proxy de
   Dokploy lo enruta para que el chat y las notificaciones en vivo funcionen.
-- **Copias de seguridad.** Definir respaldo del volumen `db-data` (base) y
-  `odoo-data` (filestore con los adjuntos). Ambos son imprescindibles.
+- **Copias de seguridad.** Definir respaldo de la base (servicio Postgres de
+  Dokploy) y del volumen `odoo-data` (filestore con los adjuntos). Ambos son
+  imprescindibles.
 
 ---
 

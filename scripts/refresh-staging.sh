@@ -83,11 +83,32 @@ STAGING_DATA_DIR="${STAGING_DATA_DIR:-/home/odoo/data}"
 [ "$STAGING_ODOO_CONTAINER" != "$PROD_ODOO_CONTAINER" ] \
   || die "El contenedor de Odoo de staging es el de produccion. Abortando."
 
-# Verifica que los contenedores existen antes de empezar.
-for c in "$PROD_DB_CONTAINER" "$PROD_ODOO_CONTAINER" \
-         "$STAGING_DB_CONTAINER" "$STAGING_ODOO_CONTAINER"; do
-  docker inspect "$c" >/dev/null 2>&1 || die "Contenedor no encontrado: $c"
+# Los contenedores se pueden indicar por su nombre exacto o por el nombre del
+# SERVICIO. Hace falta lo segundo con las bases de datos nativas de Dokploy:
+# corren como servicio de Swarm y su contenedor se llama
+# "<servicio>.1.<id aleatorio>", que cambia en cada reinicio.
+resolve_container() {
+  if docker inspect "$1" >/dev/null 2>&1; then
+    printf '%s\n' "$1"
+    return 0
+  fi
+  docker ps --filter "name=^$1\\." --format '{{.Names}}' | head -n 1
+}
+# Verifica que los contenedores existen antes de empezar y fija su nombre real.
+for v in PROD_DB_CONTAINER PROD_ODOO_CONTAINER \
+         STAGING_DB_CONTAINER STAGING_ODOO_CONTAINER; do
+  eval "name=\$$v"
+  found="$(resolve_container "$name")"
+  [ -n "$found" ] || die "Contenedor o servicio no encontrado: $name"
+  eval "$v=\$found"
 done
+
+# Segunda barrera, ya con los nombres reales: dos nombres de servicio distintos
+# no deben resolver al mismo contenedor.
+[ "$STAGING_DB_CONTAINER" != "$PROD_DB_CONTAINER" ] \
+  || die "La base de staging y la de produccion son el mismo contenedor. Abortando."
+[ "$STAGING_ODOO_CONTAINER" != "$PROD_ODOO_CONTAINER" ] \
+  || die "El Odoo de staging y el de produccion son el mismo contenedor. Abortando."
 
 STAGING_ODOO_IMAGE="$(docker inspect -f '{{.Config.Image}}' "$STAGING_ODOO_CONTAINER")"
 
