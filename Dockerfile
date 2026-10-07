@@ -56,8 +56,8 @@ RUN curl -fsSL -o /tmp/wkhtmltox.deb "${WKHTMLTOPDF_URL}" \
 
 RUN groupadd -g 101 odoo \
  && useradd -u 100 -g 101 -md /var/lib/odoo -s /bin/bash odoo \
- && mkdir -p /etc/odoo /mnt/custom_addons /mnt/vendor_addons /opt/odoo \
- && chown -R odoo:odoo /var/lib/odoo /etc/odoo /mnt/custom_addons /mnt/vendor_addons /opt/odoo
+ && mkdir -p /etc/odoo /mnt/custom_addons /mnt/shared /opt/odoo \
+ && chown -R odoo:odoo /var/lib/odoo /etc/odoo /mnt/custom_addons /mnt/shared /opt/odoo
 
 # La URL prefirmada llega como secreto: no queda en ninguna capa ni en
 # "docker history". Nunca se imprime, apareceria en los logs de build.
@@ -77,7 +77,13 @@ RUN pip3 install --no-cache-dir -r /opt/odoo/requirements.txt
 
 COPY --chown=odoo:odoo odoo-bin      /opt/odoo/odoo-bin
 COPY --chown=odoo:odoo custom_addons /mnt/custom_addons
-COPY --chown=odoo:odoo vendor_addons /mnt/vendor_addons
+COPY --chown=odoo:odoo shared        /mnt/shared
+# Red de seguridad: 'shared' es un submodulo de git. Si quien construye no lo
+# inicializo (clon sin --recurse-submodules, o Dokploy sin la opcion de
+# submodulos), la carpeta llega VACIA y Odoo arrancaria sin esos modulos, sin
+# ningun error. Que el build falle aqui, ruidoso.
+RUN ls /mnt/shared/*/__manifest__.py >/dev/null 2>&1 \
+      || { echo 'FATAL: shared/ esta vacio; falta inicializar el submodulo'; exit 1; }
 COPY --chown=odoo:odoo odoo.conf     /etc/odoo/odoo.conf
 COPY entrypoint.sh /entrypoint.sh
 RUN chmod +x /entrypoint.sh
