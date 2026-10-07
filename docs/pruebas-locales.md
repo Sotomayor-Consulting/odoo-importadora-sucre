@@ -32,11 +32,10 @@ se niega a arrancar y dice cual falta):
 ```
 ENV_NAME=local
 DOMAIN=localhost
+DB_HOST=db
 DB_NAME=importadora_local
-POSTGRES_USER=odoo_admin
-POSTGRES_PASSWORD=una_clave_larga
 ODOO_DB_USER=odoo
-ODOO_DB_PASSWORD=otra_clave_larga
+ODOO_DB_PASSWORD=una_clave_larga
 ADMIN_PASSWD=una_tercera_clave
 R2_URL=https://...url-prefirmada-de-r2...
 ```
@@ -90,8 +89,19 @@ versionara, Dokploy lo fusionaria en produccion y desplegaria con red del host.
 
 ## 4. Construir y levantar
 
+En el servidor la base es un servicio de Dokploy; en local la aporta
+`docker-compose.local.yml`, junto con los puertos publicados (8069 y 8072). Hay
+que nombrar los dos archivos en cada orden, o bien exportar una vez:
+
 ```bash
-docker compose up --build -d
+export COMPOSE_FILE=docker-compose.yml:docker-compose.local.yml
+```
+
+Con eso los `docker compose ...` de esta guia funcionan tal cual. En `.env`,
+`DB_HOST=db`.
+
+```bash
+docker compose -f docker-compose.yml -f docker-compose.local.yml up --build -d
 ```
 
 El primer build tarda unos 3 minutos: instala las dependencias de sistema,
@@ -113,9 +123,9 @@ odoo: database: odoo@db:5432
 odoo.service.server: HTTP service (werkzeug) running on ...:8069
 ```
 
-Odoo queda en <http://localhost:8069>. Para publicarlo hay que añadir
-`ports: ["8069:8069"]` en el override: el `docker-compose.yml` de produccion
-solo usa `expose`, porque alli enruta el proxy de Dokploy.
+Odoo queda en <http://localhost:8069>. Los puertos los publica
+`docker-compose.local.yml`: el `docker-compose.yml` de produccion solo usa
+`expose`, porque alli enruta el proxy de Dokploy.
 
 ---
 

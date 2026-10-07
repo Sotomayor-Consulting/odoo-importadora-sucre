@@ -8,6 +8,10 @@ ARG ODOO_VERSION=19.0+e.20260902
 ARG ODOO_SHA256=41f56d2adda8ef4369745ad8c6964aa88aace210c2d6cd1c2b8529a1745b2e52
 ARG WKHTMLTOPDF_URL=https://github.com/wkhtmltopdf/packaging/releases/download/0.12.6.1-3/wkhtmltox_0.12.6.1-3.jammy_amd64.deb
 ARG WKHTMLTOPDF_SHA1=967390a759707337b46d1c02452e2bb6b2dc6d59
+# Version mayor del SERVIDOR PostgreSQL (el servicio de Dokploy). El cliente de
+# la imagen debe ser de la misma: pg_dump se niega a volcar un servidor mas
+# nuevo que el, y 'odoo-bin db dump' usa el pg_dump de este contenedor.
+ARG PG_MAJOR=18
 
 ENV LANG=en_US.UTF-8 \
     ODOO_RC=/home/odoo/.config/odoo/odoo.conf \
@@ -15,11 +19,23 @@ ENV LANG=en_US.UTF-8 \
     DEBIAN_FRONTEND=noninteractive \
     PIP_BREAK_SYSTEM_PACKAGES=1
 
+# Repositorio oficial de PostgreSQL (PGDG). Ubuntu 24.04 solo trae el cliente
+# 16; de aqui sale el de PG_MAJOR. Es lo mismo que hace la imagen oficial de
+# Odoo. La clave se guarda aparte y el repositorio queda atado a ella
+# (signed-by), sin confiar en ella para ningun otro origen.
+RUN apt-get update && apt-get install -y --no-install-recommends ca-certificates curl \
+ && install -d /usr/share/postgresql-common/pgdg \
+ && curl -fsSL -o /usr/share/postgresql-common/pgdg/apt.postgresql.org.asc \
+      https://www.postgresql.org/media/keys/ACCC4CF8.asc \
+ && echo "deb [signed-by=/usr/share/postgresql-common/pgdg/apt.postgresql.org.asc] https://apt.postgresql.org/pub/repos/apt noble-pgdg main" \
+      > /etc/apt/sources.list.d/pgdg.list \
+ && rm -rf /var/lib/apt/lists/*
+
 # Dependencias de sistema. Los python3-* de Noble satisfacen los pines exactos
 # del requirements.txt, asi que el pip posterior apenas compila nada.
 RUN apt-get update && apt-get install -y --no-install-recommends \
       ca-certificates curl gnupg xz-utils locales \
-      postgresql-client \
+      postgresql-client-${PG_MAJOR} \
       nodejs npm node-less \
       fonts-noto fonts-noto-cjk fonts-liberation \
       python3 python3-pip python3-setuptools python3-wheel python3-dev \

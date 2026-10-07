@@ -1,46 +1,16 @@
+# Este stack lleva SOLO Odoo. PostgreSQL es un servicio aparte, creado en
+# Dokploy como base de datos nativa (ver docs/postgres-dokploy.md): asi un
+# despliegue de Odoo nunca toca la base, y esta tiene su propio ciclo de vida,
+# sus backups y sus limites.
+#
+# Para levantar todo en local hay un Postgres de pruebas en
+# docker-compose.local.yml (ver docs/pruebas-locales.md).
 services:
-  db:
-    image: postgres:16
-    # max_connections elevado para dar cabida a (workers + 2) x db_maxconn.
-    command: ["postgres", "-c", "max_connections=200"]
-    environment:
-      # Superusuario del contenedor: SOLO administracion y backups.
-      POSTGRES_USER: ${POSTGRES_USER}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
-      POSTGRES_DB: postgres
-      # Rol de aplicacion (sin superusuario) que crea db-init/10-odoo-role.sh
-      # y con el que se conecta Odoo.
-      ODOO_DB_USER: ${ODOO_DB_USER}
-      ODOO_DB_PASSWORD: ${ODOO_DB_PASSWORD}
-    volumes:
-      - db-data:/var/lib/postgresql/data
-      # Scripts de inicializacion. Postgres los corre una unica vez, cuando el
-      # volumen esta vacio. Aqui se crea el rol de aplicacion de Odoo.
-      - ./db-init:/docker-entrypoint-initdb.d:ro
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d postgres"]
-      interval: 10s
-      timeout: 5s
-      retries: 10
-    # Solo en la red interna: la base NUNCA se expone a la red compartida
-    # del proxy. Es la razon de separar las dos redes.
-    logging:
-      driver: json-file
-      options:
-        max-size: "20m"
-        max-file: "5"
-    networks:
-      - internal
-    restart: unless-stopped
-
   odoo:
     build:
       context: .
       secrets:
         - r2_url
-    depends_on:
-      db:
-        condition: service_healthy
     environment:
       # Odoo 19 lee estas variables de forma nativa (ver odoo.conf); el
       # entrypoint ya no construye argumentos. Los valores salen del panel de
@@ -48,7 +18,9 @@ services:
       #
       # --- Conexion y base. Odoo se conecta con el ROL DE APLICACION, no con
       # el superusuario de Postgres.
-      PGHOST: ${DB_HOST:-db}
+      # Nombre interno del servicio Postgres en Dokploy ("Internal Host").
+      # entrypoint.sh espera a que responda antes de arrancar Odoo.
+      PGHOST: ${DB_HOST:?Define DB_HOST}
       PGPORT: ${DB_PORT:-5432}
       PGUSER: ${ODOO_DB_USER:?Define ODOO_DB_USER}
       PGPASSWORD: ${ODOO_DB_PASSWORD:?Define ODOO_DB_PASSWORD}
@@ -135,8 +107,9 @@ services:
         max-size: "20m"
         max-file: "5"
     networks:
-      - internal          # para hablar con la base
-      - dokploy-network   # para que el proxy lo alcance
+      # Red compartida de Dokploy: por ella llega el proxy (Traefik) y por
+      # ella se alcanza el servicio Postgres.
+      - dokploy-network
     restart: unless-stopped
 
 # La URL prefirmada de R2 se toma de la variable R2_URL que define Dokploy.
@@ -149,9 +122,6 @@ secrets:
     environment: R2_URL
 
 networks:
-  # Red privada del stack. La crea Compose.
-  internal:
-
   # Red compartida donde vive el proxy (Traefik) de Dokploy. Es "external":
   # Compose NO la crea, debe existir de antes. En el servidor la crea Dokploy;
   # en local se crea a mano:
@@ -160,5 +130,4 @@ networks:
     external: true
 
 volumes:
-  db-data:
   odoo-data:

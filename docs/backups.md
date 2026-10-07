@@ -11,8 +11,8 @@ Script: [`scripts/backup.sh`](../scripts/backup.sh).
 
 ## 1. ¿Hay que montar volúmenes nuevos?
 
-**No.** Los datos ya viven en volúmenes nombrados (`db-data` para Postgres y
-`odoo-data` para el filestore) — por eso son respaldables. El backup se toma
+**No.** Los datos ya viven en volúmenes nombrados (el del servicio Postgres de
+Dokploy y `odoo-data` para el filestore) — por eso son respaldables. El backup se toma
 **desde los contenedores en marcha** (`pg_dump` + `tar` del filestore); no se
 tocan los volúmenes de la app.
 
