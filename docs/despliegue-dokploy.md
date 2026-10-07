@@ -22,8 +22,8 @@ docs/               esta documentacion
                     build pasaria de 2 MB a 410 MB
 Dockerfile          construye la imagen, descarga el fuente desde R2
 docker-compose.yml  servicios odoo + postgres
-odoo.conf           configuracion (sin credenciales)
-env.example         plantilla de variables
+odoo.conf           configuracion comun a todos los entornos (sin credenciales)
+env.example         plantilla de variables: lo que cambia por entorno
 ```
 
 El fuente (`odoo_19.0+e.20260902.tar.gz`, ~427 MB) vive en un bucket **privado**
@@ -53,9 +53,9 @@ oficial habia que borrar su Odoo para evitar la fusion de namespaces, pero ese
 borrado no recupera espacio: los archivos siguen en la capa base.
 
 El precio es mantener la lista de dependencias del sistema. `entrypoint.sh` es
-propio y replica el comportamiento del oficial: construye los argumentos de
-conexion desde `HOST`, `PORT`, `USER` y `PASSWORD`, y solo los añade si no
-estan ya en `odoo.conf`.
+propio y minimo: valida que las variables obligatorias existan, espera a
+Postgres, inicializa la base la primera vez y arranca el servidor. No construye
+configuracion: Odoo 19 la lee sola del entorno (ver seccion 2).
 
 ---
 
@@ -98,11 +98,43 @@ hay que actualizarlo en el despliegue (ver seccion 10).
 
 ## 2. Variables de entorno en Dokploy
 
-| Variable | Ejemplo | Uso |
-|---|---|---|
-| `POSTGRES_USER` | `odoo` | Usuario de la base |
-| `POSTGRES_PASSWORD` | *(clave larga)* | Contraseña de la base |
-| `R2_URL` | URL prefirmada de R2 | Descarga del fuente en el build |
+**Regla:** el repositorio y la imagen son identicos en staging y produccion.
+Lo unico que distingue un entorno de otro son sus variables en Dokploy. Las
+ramas `staging` y `main` no deben diferir en ningun archivo de configuracion.
+
+`odoo.conf` lleva solo lo comun (rutas, `proxy_mode`, `list_db`). El resto
+llega por variables que **Odoo 19 lee de forma nativa**:
+
+- `PGHOST`, `PGPORT`, `PGUSER`, `PGPASSWORD`, `PGDATABASE`: conexion y base.
+- `ODOO_<OPCION>`: cualquier otra opcion (`ODOO_WORKERS`, `ODOO_DBFILTER`...).
+
+Precedencia: linea de comandos > entorno > `odoo.conf` > valor por defecto.
+`docker-compose.yml` traduce las variables de Dokploy a esos nombres.
+
+La lista completa, con los valores de cada entorno, esta en
+[`env.example`](../env.example). Las que no tienen valor por defecto y hacen
+fallar el despliegue si faltan:
+
+| Variable | Produccion | Staging | Uso |
+|---|---|---|---|
+| `ENV_NAME` | `prod` | `staging` | Nombre unico del entorno (router de Traefik) |
+| `DOMAIN` | `erp.tudominio.com` | `staging.tudominio.com` | Dominio publico |
+| `DB_NAME` | `importadora_sucre` | `importadora_staging` | Base que sirve el stack |
+| `ODOO_DB_USER` / `ODOO_DB_PASSWORD` | *(propias)* | *(propias)* | Rol de aplicacion |
+| `ADMIN_PASSWD` | *(propia)* | *(propia)* | Master password de Odoo |
+| `POSTGRES_USER` / `POSTGRES_PASSWORD` | *(propias)* | *(propias)* | Superusuario de Postgres |
+| `R2_URL` | URL prefirmada | URL prefirmada | Descarga del fuente en el build |
+
+Las de dimensionamiento (`ODOO_WORKERS`, `ODOO_LIMIT_MEMORY_*`,
+`ODOO_MEM_LIMIT`, `ODOO_CPUS`) tienen por defecto los valores de **staging**.
+En produccion hay que definirlas explicitamente; la tabla esta en `env.example`.
+
+Como `docker compose exec` hereda el entorno del contenedor, cualquier comando
+de Odoo lanzado asi usa la misma configuracion sin pasar argumentos:
+
+```bash
+docker compose exec odoo python3 /opt/odoo/odoo-bin shell
+```
 
 `R2_URL` se entrega al build como **secreto de BuildKit**, no como `ARG`.
 Verificado: no aparece en `docker history` ni en ninguna capa de la imagen.
@@ -259,7 +291,7 @@ Ademas, ese puerto 8072 **solo existe si `workers > 0`** (ya esta: `workers = 5`
 **Como se hace en Dokploy (Traefik).** El dominio principal (8069) se configura
 por la UI de Dokploy como siempre. La ruta del websocket la añade el bloque
 `labels` del servicio `odoo` en `docker-compose.yml`: crea un router
-`odoo-ws` con `PathPrefix(/websocket)` y prioridad alta que apunta al puerto
+`importadora-<ENV_NAME>-ws` con `PathPrefix(/websocket)` y prioridad alta que apunta al puerto
 8072. Traefik gestiona solo el *upgrade* de websocket y las cabeceras
 `X-Forwarded-*`, asi que no hace falta middleware extra.
 

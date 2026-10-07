@@ -30,16 +30,25 @@ Staging es **el mismo repositorio y la misma imagen**, desplegado como un
 
 | Variable | Producción | Staging |
 |---|---|---|
+| `ENV_NAME` | `prod` | `staging` |
+| `DOMAIN` (y dominio en Dokploy) | `erp.tudominio.com` | `staging.tudominio.com` |
 | `DB_NAME` | `importadora_sucre` | `importadora_staging` |
 | `SKIP_DB_INIT` | *(vacío)* | **`1`** — no inicializar, se restaura |
-| Dominio (Dokploy) | `erp.tudominio.com` | `staging.tudominio.com` |
+| `ODOO_WORKERS` | `3` | `2` |
+| `ODOO_MEM_LIMIT` / `ODOO_CPUS` | `4g` / `3` | `2g` / `1.5` |
+
+La lista completa está en [`env.example`](../env.example).
 
 `SKIP_DB_INIT=1` es imprescindible: evita que el `entrypoint.sh` intente crear
 una base vacía en vez de usar la que restaura el script de refresco.
 
-En `odoo.conf`, staging necesita su propio `db_name`/`dbfilter`. Si prefieres no
-mantener dos `odoo.conf`, deja el filtro por host (`dbfilter = ^%d$`) o
-sobreescribe `db_name`/`dbfilter` por variable de entorno en Dokploy.
+`odoo.conf` es **idéntico** en las ramas `staging` y `main`: no lleva nombre de
+base ni `dbfilter`. Ambos salen de `DB_NAME` (el `dbfilter` se deriva solo como
+`^<DB_NAME>$`). Si las dos ramas difieren en un archivo de configuración, es un
+error: al promover `staging` a `main` producción heredaría valores de staging.
+
+Staging lleva menos workers y un techo de memoria y CPU más bajo porque comparte
+servidor con producción: una prueba pesada no debe dejarla sin recursos.
 
 > **Regla de oro:** la base de staging **nunca** en la red del proxy antes de
 > estar neutralizada. El script de abajo garantiza el orden.
