@@ -389,25 +389,60 @@ del navegador, la peticion a `wss://TU_DOMINIO/websocket` debe quedar en estado
 
 ---
 
-## 10. Actualizacion de modulos (variable UPGRADE)
+## 10. Actualizacion de modulos
 
-El `entrypoint.sh` inicializa la base la primera vez, pero **no actualiza los
-modulos por si solo**: subir una version nueva del fuente o cambiar un modulo no
-aplica sus migraciones hasta que se corre `-u`.
+Desplegar codigo nuevo no basta: si un modulo cambia modelos, vistas o datos,
+hay que **actualizarlo** en la base para que se apliquen. El `entrypoint.sh` lo
+hace solo, antes de arrancar el servidor.
 
-Para eso esta la variable `UPGRADE`:
+### La regla (la misma de Odoo.sh)
 
-- **Operacion normal:** `UPGRADE` vacio. Los arranques no actualizan nada (es
-  lento y no debe correr en cada boot).
-- **Despliegue de actualizacion:** pon `UPGRADE=all` en Dokploy, despliega (el
-  entrypoint corre `-u all --stop-after-init` antes de arrancar los workers,
-  aplicando las migraciones) y **vuelve a vaciar `UPGRADE`** para el siguiente
-  despliegue. Para un cambio acotado, `UPGRADE=nombre_del_modulo`.
+En cada arranque se compara, para cada modulo instalado, la version de su
+`__manifest__.py` en la imagen con la que la base tiene registrada. **Se
+actualizan los modulos cuya version subio.** Si no subio ninguna, no se
+actualiza nada y el arranque no se alarga.
 
-Encaja en el "Ritual de actualizacion de Odoo" (seccion 5): tras subir el
-tarball nuevo y cambiar `ODOO_VERSION`/`ODOO_SHA256`, haz **un** despliegue con
-`UPGRADE=all`, verifica, y limpia la variable.
+Consecuencia para quien desarrolla: **al cambiar modelos, vistas o datos de un
+modulo, subir su version** (`19.0.1.0.0` -> `19.0.1.0.1`). Sin eso, el codigo
+llega al contenedor pero la base no se entera.
 
-> Antes de un `UPGRADE=all` en produccion, ten un backup reciente (ver
-> [backups.md](backups.md)) y, si puedes, pruebalo primero en staging (ver
+Para ver que haria sin ejecutar nada:
+
+```bash
+docker compose exec odoo odoo-modules-to-upgrade
+```
+
+Imprime los modulos a actualizar. Tambien avisa de dos situaciones anomalas:
+modulos instalados en la base que **no estan en la imagen**, y modulos cuya
+version en la imagen es **anterior** a la de la base.
+
+### La variable UPGRADE
+
+Normalmente va **vacia**. Solo se usa para forzar:
+
+| Valor | Efecto |
+|---|---|
+| *(vacio)* | Automatico: los modulos cuya version subio |
+| `all` | Todos los modulos instalados |
+| `mod_a,mod_b` | Solo esos, sin mirar versiones |
+| `none` | No actualizar nada |
+
+`UPGRADE=all` hace falta en un caso: **al cambiar el fuente de Odoo** (seccion
+5). Los modulos propios de Odoo no suben de version entre una compilacion y la
+siguiente, asi que la comparacion automatica no los detecta. Tras ese
+despliegue, **volver a vaciar la variable**: `all` tarda varios minutos y se
+repetiria en cada reinicio.
+
+### Si la actualizacion falla
+
+El contenedor **no arranca**: es preferible a servir codigo nuevo sobre un
+esquema viejo. El motivo queda en el log del contenedor. Odoo aplica cada
+modulo en una transaccion, asi que un fallo no deja ese modulo a medias.
+
+Para volver atras: desplegar el commit anterior. Si la actualizacion llego a
+modificar datos antes de fallar en otro modulo, restaurar el backup previo (ver
+[backups.md](backups.md)).
+
+> Antes de un despliegue que suba versiones en produccion, ten un backup
+> reciente y pruebalo primero en staging (ver
 > [entornos-staging.md](entornos-staging.md)).

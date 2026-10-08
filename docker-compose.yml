@@ -63,9 +63,9 @@ services:
       # En staging va a "1": no inicializa la base (se restaura con
       # refresh-staging.sh). En produccion se deja vacio.
       SKIP_DB_INIT: ${SKIP_DB_INIT:-}
-      # Actualizacion de modulos en el arranque (aplica migraciones). Vacio en
-      # operacion normal; se pone 'all' (o una lista) SOLO en el despliegue de
-      # actualizacion y se vuelve a vaciar despues. Ver el ritual en la doc.
+      # Actualizacion de modulos en el arranque. Vacio = automatica: los modulos
+      # cuya version subio. 'all', una lista o 'none' solo para forzar; vaciar
+      # despues. Ver docs/despliegue-dokploy.md, seccion 10.
       UPGRADE: ${UPGRADE:-}
     volumes:
       # Filestore y sesiones. Sin esto se pierden los adjuntos en cada
