@@ -51,16 +51,50 @@ if [ -z "${SKIP_DB_INIT:-}" ]; then
   fi
 fi
 
-# Actualizacion de modulos (aplica migraciones del nuevo fuente/addons).
-# Se dispara SOLO cuando UPGRADE trae un valor, y corre una vez antes de
-# arrancar los workers. Ver el "Ritual de actualizacion" en la doc.
-#   UPGRADE=all               -> actualiza todos los modulos instalados
-#   UPGRADE=modulo_a,modulo_b -> actualiza solo esos
-# Tras el despliegue de actualizacion, vaciar UPGRADE para que los arranques
-# normales no repitan la actualizacion (es lenta y no debe correr en cada boot).
-if [ -n "${UPGRADE:-}" ]; then
-  echo "Actualizando modulos ($UPGRADE) en '$PGDATABASE'..."
-  python3 "$ODOO_BIN" -c "$ODOO_RC" -d "$PGDATABASE" -u "$UPGRADE" --stop-after-init
-fi
+# Actualizacion de modulos, antes de arrancar los workers.
+#
+# Por defecto es AUTOMATICA, con la regla de Odoo.sh: se actualiza cada modulo
+# instalado cuya version en __manifest__.py sea mayor que la registrada en la
+# base. Si no subio ninguna version, no se actualiza nada y el arranque no se
+# alarga. Quien cambie modelos, vistas o datos de un modulo debe subir su
+# version; si no, el cambio llega al codigo pero no a la base.
+#
+#   UPGRADE=            -> automatico (lo normal; no hay que tocar nada)
+#   UPGRADE=all         -> todos los modulos instalados. Para cuando cambia el
+#                          fuente de Odoo, cuyos modulos no suben de version
+#                          entre compilaciones. Vaciar despues.
+#   UPGRADE=mod_a,mod_b -> solo esos, sin mirar versiones. Vaciar despues.
+#   UPGRADE=none        -> nada.
+#
+# Si la actualizacion falla, el contenedor no arranca: es preferible a servir
+# codigo nuevo sobre un esquema viejo. El motivo queda en el log.
+run_upgrade() {
+  echo "Actualizando modulos ($1) en '$PGDATABASE'..."
+  python3 "$ODOO_BIN" -c "$ODOO_RC" -d "$PGDATABASE" -u "$1" --stop-after-init
+}
+
+case "${UPGRADE:-}" in
+  none)
+    echo "Actualizacion de modulos desactivada (UPGRADE=none)." ;;
+  "")
+    rc=0
+    modules=$(odoo-modules-to-upgrade "$PGDATABASE") || rc=$?
+    case "$rc" in
+      0)
+        if [ -n "$modules" ]; then
+          run_upgrade "$modules"
+        else
+          echo "Modulos al dia: ninguna version subio."
+        fi ;;
+      3)
+        # Staging recien creado, antes de cargarle la copia de produccion.
+        echo "La base '$PGDATABASE' aun no existe o esta vacia: nada que actualizar." ;;
+      *)
+        echo "FATAL: no se pudo comprobar que modulos actualizar." >&2
+        exit 1 ;;
+    esac ;;
+  *)
+    run_upgrade "$UPGRADE" ;;
+esac
 
 exec python3 "$ODOO_BIN" -c "$ODOO_RC" "$@"
