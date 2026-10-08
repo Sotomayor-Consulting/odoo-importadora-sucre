@@ -1,0 +1,270 @@
+#!/usr/bin/env bash
+#
+# odoo-refresh-staging — Sustituye la base de ESTE entorno por una copia
+# neutralizada de produccion. Es el equivalente al "Rebuild" de un staging en
+# Odoo.sh.
+#
+# Se ejecuta DENTRO del contenedor de Odoo de staging:
+#
+#   docker compose exec odoo odoo-refresh-staging            # ultimo backup de produccion en R2
+#   docker compose exec odoo odoo-refresh-staging FICHERO    # un .zip concreto
+#
+# El origen es un BACKUP de produccion (el .zip de odoo-backup), nunca la base
+# de produccion en vivo: no se le añade carga y, de paso, cada refresco
+# demuestra que ese backup se puede restaurar.
+#
+# Orden de las operaciones (no es negociable):
+#
+#   1. Se obtiene y se comprueba el .zip.
+#   2. Se carga en una base TEMPORAL, neutralizandola en la misma operacion.
+#      Odoo solo sirve la base de PGDATABASE, asi que la temporal es invisible
+#      para los usuarios y para los crons mientras aun tiene datos sin tratar.
+#   3. Se comprueba que quedo neutralizada y se fija su direccion web.
+#   4. Solo entonces se pone en el lugar de la base de staging.
+#   5. Se reinicia el contenedor: al arrancar, entrypoint.sh actualiza los
+#      modulos cuya version en esta imagen sea mayor que la de produccion.
+#
+# Si algo falla antes del paso 4, la base de staging actual queda intacta.
+#
+# Opciones:
+#   -y, --yes       No pedir confirmacion (tareas programadas).
+#   --no-restart    No reiniciar al terminar. Hay que reiniciar el servicio a
+#                   mano antes de usar staging.
+#
+# Variables (ver env.example):
+#   ENV_NAME                     Debe existir y NO ser el de produccion.
+#   REFRESH_BASE_URL             Direccion de staging. Por defecto https://$DOMAIN
+#   REFRESH_SOURCE_PREFIX        Prefijo de los backups de produccion en R2 (prod)
+#   BACKUP_R2_BUCKET, BACKUP_R2_ENDPOINT, BACKUP_R2_ACCESS_KEY_ID,
+#   BACKUP_R2_SECRET_ACCESS_KEY  De donde bajar el backup. En staging basta un
+#                                token de SOLO LECTURA.
+#
+set -euo pipefail
+
+log() { printf '[%s] %s\n' "$(date -u +'%F %T')" "$*"; }
+die() { printf 'ERROR: %s\n' "$*" >&2; exit 1; }
+
+ASSUME_YES=0
+RESTART=1
+SOURCE=""
+for arg in "$@"; do
+  case "$arg" in
+    -y|--yes)     ASSUME_YES=1 ;;
+    --no-restart) RESTART=0 ;;
+    -*)           die "Opcion desconocida: $arg" ;;
+    *)            [ -z "$SOURCE" ] || die "Solo se admite un fichero de origen."
+                  SOURCE="$arg" ;;
+  esac
+done
+
+: "${PGDATABASE:?Falta PGDATABASE (este comando corre dentro del contenedor de Odoo)}"
+
+# =========================================================================
+# Barrera: NUNCA en produccion
+# =========================================================================
+# Este comando BORRA la base del entorno. Se exige un nombre de entorno
+# explicito y se rechaza cualquiera que parezca produccion.
+ENV="${ENV_NAME:-}"
+[ -n "$ENV" ] || die "ENV_NAME no esta definido: no se puede saber si esto es produccion. Abortando."
+case "$(printf '%s' "$ENV" | tr '[:upper:]' '[:lower:]')" in
+  prod|prod-*|prod_*|production|produccion|live|main)
+    die "ENV_NAME='$ENV' es produccion. Este comando borra la base del entorno y no se ejecuta aqui." ;;
+esac
+
+BASE_URL="${REFRESH_BASE_URL:-}"
+if [ -z "$BASE_URL" ] && [ -n "${DOMAIN:-}" ]; then
+  BASE_URL="https://$DOMAIN"
+fi
+[ -n "$BASE_URL" ] || die "Falta REFRESH_BASE_URL (o DOMAIN): sin ella staging generaria enlaces hacia produccion."
+
+BACKUP_DIR="${BACKUP_DIR:-/home/odoo/backups}"
+WORK_DIR="$BACKUP_DIR/.refresh"
+TMP_DB="${PGDATABASE}_refresh"
+SOURCE_PREFIX="${REFRESH_SOURCE_PREFIX:-prod}"
+DOWNLOADED=""
+
+mkdir -p "$WORK_DIR"
+exec 9>"$WORK_DIR/.lock"
+flock -n 9 || die "Ya hay un refresco en curso."
+
+SWAPPED=""
+on_exit() {
+  rc=$?
+  if [ -n "$DOWNLOADED" ] && [ -f "$DOWNLOADED" ]; then rm -f -- "$DOWNLOADED"; fi
+  if [ -z "$SWAPPED" ]; then
+    # Se fallo antes de completar el cambio. Lo normal es que la base de
+    # staging siga intacta y solo sobre la temporal. El caso raro: la de
+    # staging ya se borro y el renombrado fallo; entonces la temporal es la
+    # unica copia y NO se toca.
+    exists="$(psql -d postgres -tAc \
+      "SELECT 1 FROM pg_database WHERE datname = '$PGDATABASE'" 2>/dev/null || true)"
+    if [ "$exists" = "1" ]; then
+      odoo-bin db drop "$TMP_DB" >/dev/null 2>&1 || true
+      if [ "$rc" -ne 0 ]; then
+        echo "Refresco ABORTADO. La base '$PGDATABASE' no se ha tocado." >&2
+      fi
+    elif [ "$rc" -ne 0 ]; then
+      {
+        echo "Refresco INCOMPLETO: '$PGDATABASE' ya no existe y la copia nueva sigue"
+        echo "en '$TMP_DB' (neutralizada). Para terminar a mano:"
+        echo "    odoo-bin db rename $TMP_DB $PGDATABASE"
+        echo "y reiniciar el servicio."
+      } >&2
+    fi
+  fi
+}
+trap on_exit EXIT
+
+# =========================================================================
+# 1. Obtener el backup
+# =========================================================================
+if [ -n "$SOURCE" ]; then
+  [ -f "$SOURCE" ] || die "No existe el fichero: $SOURCE"
+  ZIP="$SOURCE"
+  ORIGIN="$SOURCE"
+else
+  : "${BACKUP_R2_BUCKET:?Falta BACKUP_R2_BUCKET (o indica un fichero .zip)}"
+  : "${BACKUP_R2_ENDPOINT:?Falta BACKUP_R2_ENDPOINT}"
+  : "${BACKUP_R2_ACCESS_KEY_ID:?Falta BACKUP_R2_ACCESS_KEY_ID}"
+  : "${BACKUP_R2_SECRET_ACCESS_KEY:?Falta BACKUP_R2_SECRET_ACCESS_KEY}"
+
+  export RCLONE_CONFIG=/dev/null
+  export RCLONE_CONFIG_R2_TYPE="${BACKUP_R2_TYPE:-s3}"
+  export RCLONE_CONFIG_R2_PROVIDER=Cloudflare
+  export RCLONE_CONFIG_R2_ENDPOINT="$BACKUP_R2_ENDPOINT"
+  export RCLONE_CONFIG_R2_ACCESS_KEY_ID="$BACKUP_R2_ACCESS_KEY_ID"
+  export RCLONE_CONFIG_R2_SECRET_ACCESS_KEY="$BACKUP_R2_SECRET_ACCESS_KEY"
+  export RCLONE_CONFIG_R2_NO_CHECK_BUCKET=true
+
+  remote_dir="r2:$BACKUP_R2_BUCKET/$SOURCE_PREFIX/daily"
+  # Los nombres llevan la fecha (AAAAMMDD_HHMMSS): el ultimo en orden
+  # alfabetico es el mas reciente.
+  latest="$(rclone lsf --files-only --include '*.zip' "$remote_dir/" 2>/dev/null | sort | tail -n 1)" \
+    || die "No se pudo listar $remote_dir/ (¿credenciales, bucket o prefijo incorrectos?)"
+  [ -n "$latest" ] || die "No hay backups en $remote_dir/"
+  log "Descargando $remote_dir/$latest ..."
+  DOWNLOADED="$WORK_DIR/$latest"
+  rclone copyto --quiet "$remote_dir/$latest" "$DOWNLOADED"
+  ZIP="$DOWNLOADED"
+  ORIGIN="$remote_dir/$latest"
+fi
+
+# Comprobacion del zip y datos de su manifiesto.
+MANIFEST="$(python3 - "$ZIP" <<'PY'
+import json, sys, zipfile
+try:
+    with zipfile.ZipFile(sys.argv[1]) as z:
+        bad = z.testzip()
+        if bad:
+            sys.exit(f"archivo corrupto dentro del zip: {bad}")
+        if z.getinfo("dump.sql").file_size == 0:
+            sys.exit("dump.sql esta vacio")
+        m = json.loads(z.read("manifest.json"))
+except (zipfile.BadZipFile, KeyError) as exc:
+    sys.exit(f"no es un backup de Odoo valido: {exc}")
+print(f"base '{m.get('db_name')}', Odoo {m.get('version')}, {len(m.get('modules', {}))} modulos")
+PY
+)" || die "El backup no es valido: $ORIGIN"
+
+cat <<EOF
+
+  Se va a SUSTITUIR la base de este entorno por una copia de produccion:
+
+    Entorno:      $ENV
+    Se BORRA:     $PGDATABASE
+    Origen:       $ORIGIN
+                  ($MANIFEST)
+    Neutralizar:  SI
+    Direccion:    $BASE_URL
+
+EOF
+if [ "$ASSUME_YES" != 1 ]; then
+  printf "Escribe '%s' para continuar: " "$ENV"
+  read -r confirm
+  [ "$confirm" = "$ENV" ] || die "Cancelado."
+fi
+
+# =========================================================================
+# 2. Cargar en una base temporal, neutralizando
+# =========================================================================
+# 'db load' restaura la base y su filestore. Con --neutralize, Odoo neutraliza
+# antes de que la base sea visible para sus propios procesos. Sin --move: la
+# copia recibe un identificador nuevo y no se confunde con produccion.
+log "Cargando en la base temporal '$TMP_DB' y neutralizando..."
+odoo-bin db load --force --neutralize "$TMP_DB" "$ZIP"
+
+# =========================================================================
+# 3. Comprobar y ajustar la copia, todavia invisible
+# =========================================================================
+q() { psql -d "$TMP_DB" -v ON_ERROR_STOP=1 -tAc "$1"; }
+
+modules="$(q "SELECT count(*) FROM ir_module_module WHERE state = 'installed'")"
+case "$modules" in
+  ''|*[!0-9]*|0) die "La copia no tiene modulos instalados: la carga no funciono." ;;
+esac
+
+neutralized="$(q "SELECT value FROM ir_config_parameter WHERE key = 'database.is_neutralized'")"
+[ "$neutralized" = "true" ] \
+  || die "La copia NO quedo neutralizada (marca: '${neutralized:-ausente}'). No se pone en servicio."
+
+# Sin esto, los enlaces de los correos y del portal apuntarian a produccion.
+# 'freeze' impide que Odoo la cambie sola cuando un administrador inicia sesion.
+psql -d "$TMP_DB" -v ON_ERROR_STOP=1 -q -v url="$BASE_URL" <<'SQL'
+INSERT INTO ir_config_parameter (key, value) VALUES ('web.base.url', :'url')
+  ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value;
+INSERT INTO ir_config_parameter (key, value) VALUES ('web.base.url.freeze', 'True')
+  ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value;
+SQL
+log "  copia lista: $modules modulos instalados, neutralizada, direccion $BASE_URL"
+
+# =========================================================================
+# 4. Ponerla en el lugar de la base de staging
+# =========================================================================
+# 'db rename --force' borra la base actual con su filestore y renombra la
+# temporal, tambien con su filestore.
+#
+# El Odoo en marcha tiene conexiones abiertas a la base que se va a borrar. Se
+# cortan justo antes, y solo las de este mismo rol: un rol sin superusuario no
+# puede cortar las de otros, y pedirlo todo a la vez hace fallar la orden
+# entera. Si aun asi el borrado falla (otra sesion abierta, p. ej. alguien con
+# psql o un backup en curso), se reintenta.
+log "Sustituyendo '$PGDATABASE'..."
+attempt=1
+while :; do
+  psql -d postgres -qtAc "SELECT pg_terminate_backend(pid) FROM pg_stat_activity
+        WHERE datname = '$PGDATABASE' AND usename = current_user
+          AND pid <> pg_backend_pid()" >/dev/null || true
+  if odoo-bin db rename --force "$TMP_DB" "$PGDATABASE"; then
+    break
+  fi
+  if [ "$attempt" -ge 3 ]; then
+    die "No se pudo sustituir '$PGDATABASE' tras $attempt intentos (¿hay otra sesion conectada a esa base?)."
+  fi
+  attempt=$((attempt + 1))
+  log "  no se pudo sustituir; reintento $attempt de 3 en 5 segundos..."
+  sleep 5
+done
+SWAPPED=1
+
+final="$(psql -d "$PGDATABASE" -tAc "SELECT value FROM ir_config_parameter WHERE key = 'database.is_neutralized'")"
+[ "$final" = "true" ] || die "Tras el cambio, '$PGDATABASE' no figura como neutralizada. Parar el servicio y revisar."
+log "  '$PGDATABASE' es ahora la copia de produccion, neutralizada."
+
+# =========================================================================
+# 5. Reiniciar
+# =========================================================================
+# Los procesos de Odoo en marcha guardan en memoria datos de la base anterior.
+# Ademas, al arrancar de nuevo, entrypoint.sh actualiza los modulos cuya
+# version en esta imagen sea mayor que la que traia la copia.
+#
+# Se pide al proceso 1 del contenedor que termine; la politica de reinicio del
+# servicio lo vuelve a levantar. Se hace con unos segundos de retraso y en
+# segundo plano para que este comando acabe limpiamente antes.
+if [ "$RESTART" != 1 ]; then
+  log "Refresco completo. REINICIA el servicio antes de usar staging (--no-restart)."
+elif [ ! -f /.dockerenv ]; then
+  log "Refresco completo. No parece un contenedor: reinicia Odoo a mano."
+else
+  log "Refresco completo. Reiniciando el contenedor en 5 segundos..."
+  setsid sh -c 'sleep 5; kill -TERM 1' >/dev/null 2>&1 &
+fi

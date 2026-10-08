@@ -1,0 +1,41 @@
+# SOLO para pruebas en local. Dokploy no usa este archivo: Compose carga por
+# su cuenta unicamente docker-compose.yml (y docker-compose.override.yml, que por eso esta en
+# .gitignore). Este hay que pedirlo explicitamente:
+#
+#   docker compose -f docker-compose.yml -f docker-compose.local.yml up --build
+#
+# Aporta lo que en el servidor pone Dokploy: un PostgreSQL y los puertos
+# publicados. En .env, DB_HOST=db.
+services:
+  db:
+    # Misma version mayor que el servicio de Dokploy.
+    image: postgres:18
+    environment:
+      # En local el rol de Odoo es el superusuario del contenedor: evita el paso
+      # manual de crear el rol de aplicacion. En el servidor NO es asi (ver
+      # docs/postgres-dokploy.md).
+      POSTGRES_USER: ${ODOO_DB_USER}
+      POSTGRES_PASSWORD: ${ODOO_DB_PASSWORD}
+      POSTGRES_DB: postgres
+    volumes:
+      # Desde la imagen 18 el volumen se monta en /var/lib/postgresql (los
+      # datos quedan en un subdirectorio por version), no en .../data.
+      - db-data:/var/lib/postgresql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${ODOO_DB_USER} -d postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+    networks:
+      - dokploy-network
+
+  odoo:
+    depends_on:
+      db:
+        condition: service_healthy
+    ports:
+      - "8069:8069"
+      - "8072:8072"
+
+volumes:
+  db-data:

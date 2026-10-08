@@ -12,7 +12,7 @@ Ver [despliegue-dokploy.md](despliegue-dokploy.md) para la arquitectura.
 
 - Docker con BuildKit (por defecto desde Docker 23).
 - ~10 GB libres: la imagen ocupa ~5.9 GB y el build necesita margen.
-- Acceso al tarball de Odoo: por URL prefirmada de R2, o el archivo en local.
+- Acceso al tarball de Odoo: con el token de R2 de solo lectura, o el archivo en local.
 
 > **No instales Dokploy en WSL para esto.** Activa Docker Swarm y se adueña
 > del host, ademas de que la IP de WSL cambia en cada reinicio. Para probar en
@@ -26,21 +26,29 @@ Ver [despliegue-dokploy.md](despliegue-dokploy.md) para la arquitectura.
 cp env.example .env
 ```
 
-Edita `.env` con tus valores:
+Edita `.env` con tus valores. Las obligatorias (sin ellas `docker compose`
+se niega a arrancar y dice cual falta):
 
 ```
-POSTGRES_USER=odoo
-POSTGRES_PASSWORD=una_clave_larga
-R2_URL=https://...url-prefirmada-de-r2...
+ENV_NAME=local
+DOMAIN=localhost
+DB_HOST=db
+DB_NAME=importadora_local
+ODOO_DB_USER=odoo
+ODOO_DB_PASSWORD=una_clave_larga
+ADMIN_PASSWD=una_tercera_clave
+R2_ACCESS_KEY_ID=...
+R2_SECRET_ACCESS_KEY=...
+R2_OBJECT_URL=https://TU_ACCOUNT_ID.r2.cloudflarestorage.com/TU_BUCKET/odoo-19.0-e-20260902.tar.gz
 ```
+
+En local conviene dejar `SKIP_DB_INIT` vacio para que el entrypoint cree la
+base sola.
 
 `.env` esta en `.gitignore`. No lo commitees.
 
-Generar la URL prefirmada:
-
-```bash
-aws s3 presign s3://TU_BUCKET/odoo_19.0+e.20260902.tar.gz --endpoint-url https://TU_ACCOUNT_ID.r2.cloudflarestorage.com --expires-in 3600
-```
+El token y la URL son los mismos que en el servidor; ver
+[despliegue-dokploy.md](despliegue-dokploy.md), seccion 6.
 
 ---
 
@@ -68,10 +76,13 @@ services:
 Y en `.env`:
 
 ```
-R2_URL=http://127.0.0.1:8899/odoo_19.0%2Be.20260902.tar.gz
+R2_OBJECT_URL=http://127.0.0.1:8899/odoo-19.0-e-20260902.tar.gz
+R2_ACCESS_KEY_ID=local
+R2_SECRET_ACCESS_KEY=local
 ```
 
-> El `+` del nombre debe ir como `%2B` en la URL.
+El servidor local ignora la firma, asi que las dos claves pueden ser cualquier
+texto; solo no pueden estar vacias. Renombra antes el archivo sin el `+`.
 
 `docker-compose.override.yml` esta en `.gitignore` a proposito: si se
 versionara, Dokploy lo fusionaria en produccion y desplegaria con red del host.
@@ -80,8 +91,19 @@ versionara, Dokploy lo fusionaria en produccion y desplegaria con red del host.
 
 ## 4. Construir y levantar
 
+En el servidor la base es un servicio de Dokploy; en local la aporta
+`docker-compose.local.yml`, junto con los puertos publicados (8069 y 8072). Hay
+que nombrar los dos archivos en cada orden, o bien exportar una vez:
+
 ```bash
-docker compose up --build -d
+export COMPOSE_FILE=docker-compose.yml:docker-compose.local.yml
+```
+
+Con eso los `docker compose ...` de esta guia funcionan tal cual. En `.env`,
+`DB_HOST=db`.
+
+```bash
+docker compose -f docker-compose.yml -f docker-compose.local.yml up --build -d
 ```
 
 El primer build tarda unos 3 minutos: instala las dependencias de sistema,
@@ -98,14 +120,14 @@ Señales de que va bien:
 
 ```
 odoo: Odoo version 19.0+e-20260902
-odoo: addons paths: _NamespacePath(['/opt/odoo/odoo/addons', ...])
+odoo: addons paths: _NamespacePath(['/home/odoo/src/odoo/odoo/addons', ...])
 odoo: database: odoo@db:5432
 odoo.service.server: HTTP service (werkzeug) running on ...:8069
 ```
 
-Odoo queda en <http://localhost:8069>. Para publicarlo hay que añadir
-`ports: ["8069:8069"]` en el override: el `docker-compose.yml` de produccion
-solo usa `expose`, porque alli enruta el proxy de Dokploy.
+Odoo queda en <http://localhost:8069>. Los puertos los publica
+`docker-compose.local.yml`: el `docker-compose.yml` de produccion solo usa
+`expose`, porque alli enruta el proxy de Dokploy.
 
 ---
 
@@ -114,16 +136,19 @@ solo usa `expose`, porque alli enruta el proxy de Dokploy.
 Sin datos de demostracion:
 
 ```bash
-docker compose exec -T odoo python3 -m odoo -c /etc/odoo/odoo.conf -d test -i base --stop-after-init --without-demo=all --db_host=db --db_user=odoo --db_password=TU_CLAVE
+docker compose exec -T odoo odoo-bin -d test -i base --stop-after-init
 ```
 
-`docker compose exec` no pasa por el entrypoint, asi que hay que dar los
-`--db_*` a mano. En el arranque normal los inyecta `entrypoint.sh` desde las
-variables `HOST`, `PORT`, `USER` y `PASSWORD`.
+`docker compose exec` hereda el entorno del contenedor, asi que Odoo ya conoce
+la conexion (`PGHOST`, `PGUSER`, `PGPASSWORD`) sin pasar ningun `--db_*`. Solo
+se indica `-d test` para no usar la base por defecto (`PGDATABASE`).
+
+Esa base no aparece en el navegador: el `dbfilter` solo deja ver la de
+`DB_NAME`. Para abrirla, arranca con `DB_NAME=test` en `.env`.
 
 Para instalar un modulo concreto, cambia `-i base` por el que quieras
 (`-i web_enterprise`, `-i l10n_ec`, ...). Verificado con `web_enterprise`
-y con un modulo propio en `/mnt/custom_addons`..
+y con un modulo propio en `custom_addons/`.
 
 ---
 
@@ -135,14 +160,14 @@ Que corre el fuente correcto y no el de la imagen oficial:
 docker compose exec -T odoo python3 -c "import odoo.cli, odoo.release; print(odoo.cli.__file__); print(odoo.release.version)"
 ```
 
-Debe responder `/opt/odoo/odoo/cli/__init__.py`. Si dijera
+Debe responder `/home/odoo/src/odoo/odoo/cli/__init__.py`. Si dijera
 `/usr/lib/python3/dist-packages/...`, el `rm -rf` del Dockerfile no surtio
 efecto y estarias corriendo una mezcla de dos versiones.
 
 Catalogo de modulos visible (deben ser 1476):
 
 ```bash
-docker compose exec -T odoo bash -lc "ls /opt/odoo/odoo/addons | wc -l"
+docker compose exec -T odoo bash -lc "ls /home/odoo/src/odoo/odoo/addons | wc -l"
 ```
 
 Estado de los modulos en la base:
@@ -168,8 +193,12 @@ docker history --no-trunc $(docker compose images -q odoo) | grep -c r2.cloudfla
 ## 7. Problemas frecuentes
 
 **El build falla en el `curl` con exit 2.** No hay red hacia el origen. Si
-sirves el archivo en local, falta `network: host` en el override. Si usas R2,
-la URL prefirmada caduco (maximo 7 dias): genera una nueva.
+sirves el archivo en local, falta `network: host` en el override.
+
+**El build falla en el `curl` con exit 22.** R2 rechazo la peticion: `403` si el
+token no tiene permiso sobre ese bucket o la URL esta mal, `404` si el objeto no
+existe con ese nombre. Prueba el token fuera del build (seccion 6 de
+[despliegue-dokploy.md](despliegue-dokploy.md)).
 
 **El build falla con `sha256sum: WARNING: 1 computed checksum did NOT match`.**
 El `ARG ODOO_SHA256` del Dockerfile no corresponde al tarball descargado.
@@ -184,7 +213,7 @@ descarga esta cacheada. Cambia `ARG ODOO_VERSION` en el Dockerfile, o fuerza
 9p de WSL colapsa con los 92.691 archivos del tarball. Trabaja siempre con el
 `.tar.gz`: son 427 MB en un solo archivo y se copia en segundos.
 
-**Odoo avisa `invalid addons directory '/mnt/custom_addons'` y lo descarta.**
+**Odoo avisa `invalid addons directory '/home/odoo/src/user/custom_addons'` y lo descarta.**
 Es **normal mientras no tengas modulos propios**: Odoo exige que un
 `addons_path` contenga al menos un subdirectorio con `__init__.py` y
 `__manifest__.py`, y si no lo descarta. No es un problema de permisos ni del

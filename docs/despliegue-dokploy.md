@@ -15,14 +15,46 @@ cambia a menudo:
 
 ```
 custom_addons/      modulos propios de este cliente
-vendor_addons/      librería compartida de Sotomayor Consulting (git subtree)
+shared/             modulos compartidos de Sotomayor Consulting (submodulo de git,
+                    repo odoo-sci-shared-addons, rama 19.0)
 docs/               esta documentacion
 .dockerignore       Docker NO respeta .gitignore: sin esto el contexto de
                     build pasaria de 2 MB a 410 MB
 Dockerfile          construye la imagen, descarga el fuente desde R2
-docker-compose.yml  servicios odoo + postgres
-odoo.conf           configuracion (sin credenciales)
-env.example         plantilla de variables
+docker-compose.yml  servicio odoo (la base es un servicio aparte de Dokploy)
+docker-compose.local.yml  Postgres y puertos para pruebas en local
+odoo.conf           configuracion comun a todos los entornos (sin credenciales)
+env.example         plantilla de variables: lo que cambia por entorno
+```
+
+Dentro de la imagen, la estructura es **la misma que Odoo.sh**:
+
+```
+/home/odoo/
+  .config/odoo/odoo.conf   configuracion comun (lo demas llega por entorno)
+  src/odoo/                fuente de Odoo (Community + Enterprise, un tarball)
+  src/user/                este repositorio, con sus mismos nombres:
+    custom_addons/           modulos propios del cliente
+    shared/                  submodulo odoo-sci-shared-addons
+  data/                    data_dir: filestore y sesiones (volumen odoo-data)
+```
+
+Dos diferencias deliberadas con Odoo.sh: no hay `src/enterprise/` (el tarball
+de odoo.com ya trae Community y Enterprise juntos) ni `logs/` (en Docker los
+logs van a la salida estandar y se ven en Dokploy).
+
+**Permisos.** El codigo y la configuracion son de `root` y de solo lectura para
+el proceso de Odoo, que corre como el usuario `odoo`. Ese usuario solo puede
+escribir en `data/` y en sus caches (`.cache/`, `.local/`). Un fallo que permita
+ejecutar codigo dentro de Odoo no puede reescribir el fuente. Consecuencia
+practica: **no se parchea codigo dentro de un contenedor en marcha**; cualquier
+cambio pasa por el repositorio y un despliegue.
+
+`odoo-bin` esta en el `PATH`, y `docker compose exec` hereda la configuracion
+del contenedor:
+
+```bash
+docker compose exec odoo odoo-bin shell
 ```
 
 El fuente (`odoo_19.0+e.20260902.tar.gz`, ~427 MB) vive en un bucket **privado**
@@ -52,58 +84,114 @@ oficial habia que borrar su Odoo para evitar la fusion de namespaces, pero ese
 borrado no recupera espacio: los archivos siguen en la capa base.
 
 El precio es mantener la lista de dependencias del sistema. `entrypoint.sh` es
-propio y replica el comportamiento del oficial: construye los argumentos de
-conexion desde `HOST`, `PORT`, `USER` y `PASSWORD`, y solo los añade si no
-estan ya en `odoo.conf`.
+propio y minimo: valida que las variables obligatorias existan, espera a
+Postgres, inicializa la base la primera vez y arranca el servidor. No construye
+configuracion: Odoo 19 la lee sola del entorno (ver seccion 2).
+
+---
+
+## 1.bis Modulos compartidos (submodulo `shared/`)
+
+`shared/` no es una carpeta normal: es un **submodulo de git** que apunta a un
+commit concreto del repo `odoo-sci-shared-addons` (rama `19.0`). Este repo solo
+guarda ese puntero, no el codigo.
+
+**Clonar.** Un `git clone` normal deja `shared/` vacio:
+
+```bash
+git clone --recurse-submodules git@github.com:Sotomayor-Consulting/odoo-importadora-sucre.git
+# o, en un clon ya hecho:
+git submodule update --init
+```
+
+**Dokploy.** En la configuracion del proveedor git del servicio hay que activar
+la opcion de **submodulos**, y la credencial (GitHub App o deploy key) necesita
+lectura sobre los DOS repos. Si falta, el build falla con
+`FATAL: shared/ esta vacio` (red de seguridad del Dockerfile).
+
+La URL en `.gitmodules` es relativa (`../odoo-sci-shared-addons.git`): hereda el
+protocolo del repo padre, asi que sirve igual por SSH que por HTTPS.
+
+**Actualizar los modulos compartidos.** Nunca se editan aqui dentro. El cambio
+se hace en `odoo-sci-shared-addons` y aqui se sube el puntero, por PR a
+`staging`:
+
+```bash
+git -C shared fetch origin && git -C shared checkout origin/19.0
+git add shared && git commit -m "chore(shared): subir puntero a <commit>"
+```
+
+Asi una mejora hecha para otro cliente no llega a este hasta que alguien lo
+decide y lo prueba en staging. Si el cambio trae version nueva de un modulo,
+hay que actualizarlo en el despliegue (ver seccion 10).
 
 ---
 
 ## 2. Variables de entorno en Dokploy
 
-| Variable | Ejemplo | Uso |
-|---|---|---|
-| `POSTGRES_USER` | `odoo` | Usuario de la base |
-| `POSTGRES_PASSWORD` | *(clave larga)* | Contraseña de la base |
-| `R2_URL` | URL prefirmada de R2 | Descarga del fuente en el build |
+**Regla:** el repositorio y la imagen son identicos en staging y produccion.
+Lo unico que distingue un entorno de otro son sus variables en Dokploy. Las
+ramas `staging` y `main` no deben diferir en ningun archivo de configuracion.
 
-`R2_URL` se entrega al build como **secreto de BuildKit**, no como `ARG`.
-Verificado: no aparece en `docker history` ni en ninguna capa de la imagen.
-Verificado tambien que Compose la resuelve desde el archivo `.env` que genera
-Dokploy, sin necesidad de exportarla.
+`odoo.conf` lleva solo lo comun (rutas, `proxy_mode`, `list_db`). El resto
+llega por variables que **Odoo 19 lee de forma nativa**:
 
-Generar la URL prefirmada:
+- `PGHOST`, `PGPORT`, `PGUSER`, `PGPASSWORD`, `PGDATABASE`: conexion y base.
+- `ODOO_<OPCION>`: cualquier otra opcion (`ODOO_WORKERS`, `ODOO_DBFILTER`...).
+
+Precedencia: linea de comandos > entorno > `odoo.conf` > valor por defecto.
+`docker-compose.yml` traduce las variables de Dokploy a esos nombres.
+
+La lista completa, con los valores de cada entorno, esta en
+[`env.example`](../env.example). Las que no tienen valor por defecto y hacen
+fallar el despliegue si faltan:
+
+| Variable | Produccion | Staging | Uso |
+|---|---|---|---|
+| `ENV_NAME` | `prod` | `staging` | Nombre unico del entorno (router de Traefik) |
+| `DOMAIN` | `erp.tudominio.com` | `staging.tudominio.com` | Dominio publico |
+| `DB_NAME` | `importadora_sucre` | `importadora_staging` | Base que sirve el stack |
+| `ODOO_DB_USER` / `ODOO_DB_PASSWORD` | *(propias)* | *(propias)* | Rol de aplicacion |
+| `ADMIN_PASSWD` | *(propia)* | *(propia)* | Master password de Odoo |
+| `DB_HOST` | host interno de su Postgres | host interno de su Postgres | Servicio de base de datos |
+| `R2_ACCESS_KEY_ID` / `R2_SECRET_ACCESS_KEY` | token de solo lectura | el mismo | Descarga del fuente en el build |
+| `R2_OBJECT_URL` | URL del tarball | la misma | Descarga del fuente en el build |
+
+Las de dimensionamiento (`ODOO_WORKERS`, `ODOO_LIMIT_MEMORY_*`,
+`ODOO_MEM_LIMIT`, `ODOO_CPUS`) tienen por defecto los valores de **staging**.
+En produccion hay que definirlas explicitamente; la tabla esta en `env.example`.
+
+Como `docker compose exec` hereda el entorno del contenedor, cualquier comando
+de Odoo lanzado asi usa la misma configuracion sin pasar argumentos:
 
 ```bash
-aws s3 presign s3://TU_BUCKET/odoo_19.0+e.20260902.tar.gz \
-  --endpoint-url https://TU_ACCOUNT_ID.r2.cloudflarestorage.com \
-  --expires-in 604800
+docker compose exec odoo odoo-bin shell
 ```
+
+Las tres variables `R2_*` se entregan al build como **secretos de BuildKit**,
+no como `ARG`: no aparecen en `docker history` ni en ninguna capa de la imagen.
+Compose las resuelve desde el archivo `.env` que genera Dokploy. Como crear el
+token y subir el tarball esta en la seccion 6.
 
 > **Nunca** imprimas el secreto dentro de un `RUN` (`echo`, `cat`): apareceria
 > en los logs de build de Dokploy.
 
 ---
 
-## 2.bis Redes
+## 2.bis Base de datos y red
 
-El stack usa dos redes, y la separacion es deliberada:
+El `docker-compose.yml` lleva **solo Odoo**. PostgreSQL es un servicio nativo de
+Dokploy, uno por entorno; como crearlo, darle su rol y ajustarlo esta en
+[postgres-dokploy.md](postgres-dokploy.md). Odoo lo alcanza por `DB_HOST`.
 
-| Red | Quien la crea | Quien la usa |
-|---|---|---|
-| `internal` | Compose | `odoo` y `db` |
-| `dokploy-network` | **Dokploy** (externa) | solo `odoo` |
-
-`dokploy-network` esta declarada como `external: true`: Compose **no** la crea y
-falla el `up` si no existe. En el servidor la crea Dokploy para su proxy. En
-local hay que crearla a mano:
+El stack usa una unica red, `dokploy-network`, declarada como `external: true`:
+Compose **no** la crea y falla el `up` si no existe. En el servidor la crea
+Dokploy; por ella llega el proxy (Traefik) y se alcanza la base. En local hay
+que crearla a mano:
 
 ```bash
 docker network create dokploy-network
 ```
-
-**La base de datos no esta en la red compartida.** Solo `odoo` la alcanza, y
-solo `odoo` es alcanzable por el proxy. Postgres nunca queda expuesto a los
-demas servicios que Dokploy tenga en ese host.
 
 Nota: `docker compose config` **no** detecta que la red externa falte; el error
 aparece al hacer `up`.
@@ -139,34 +227,97 @@ comando `RUN`, asi que cambiarlo invalida la cache y fuerza la descarga.
 Tres o cuatro veces al año:
 
 1. Descargar el tarball nuevo desde tu cuenta de odoo.com.
-2. `sha256sum odoo_19.0+e.AAAAMMDD.tar.gz` y anotar el resultado.
-3. Subirlo al bucket privado de R2.
-4. Generar una `R2_URL` prefirmada nueva y actualizarla en Dokploy.
+2. `sha256sum` del archivo y anotar el resultado.
+3. Subirlo al bucket privado de R2 con un nombre sin `+` (seccion 6).
+4. Actualizar `R2_OBJECT_URL` en Dokploy, en los dos entornos.
 5. En el `Dockerfile`, actualizar `ODOO_VERSION` y `ODOO_SHA256`.
-6. Commit y push. Dokploy reconstruye y despliega.
+6. Revisar las dependencias de sistema (ver abajo).
+7. Commit y push. Dokploy reconstruye y despliega.
 
 Si algo falla, se vuelve al commit anterior: el `Dockerfile` describe por
 completo la version que corre.
 
+**Dependencias de sistema.** La instalacion oficial desde fuente las resuelve
+con `setup/debinstall.sh`, que instala lo que lista el campo `Depends` de
+`debian/control`. El tarball de odoo.com no trae ninguno de los dos archivos,
+asi que el `Dockerfile` lleva esa lista a mano. Al cambiar de version hay que
+compararla con la del repositorio de Odoo, en la rama correspondiente:
+
+<https://github.com/odoo/odoo/blob/19.0/debian/control>
+
+Las librerias de Python que falten las cubre el `pip install -r
+requirements.txt` posterior. Lo que `pip` **no** puede cubrir son los paquetes
+que no son de Python, sobre todo las **fuentes** (`fonts-*`, `gsfonts`): si
+falta una, los PDF se generan igual pero con otra tipografia, sin ningun error.
+
 ---
 
-## 6. Caducidad de la URL prefirmada
+## 6. El fuente de Odoo en R2
 
-Las URL prefirmadas de S3/R2 caducan como maximo a los **7 dias**.
+El build descarga el tarball de un bucket **privado** de Cloudflare R2 con un
+**token de solo lectura que no caduca**. curl firma la peticion con ese token
+(AWS SigV4, el protocolo de la API S3 que habla R2).
 
-En el dia a dia da igual, porque los redespliegues usan la cache. Pero un build
-**sin cache** con la URL caducada falla. Ocurre al cambiar `ODOO_VERSION`, al
-migrar a un servidor nuevo, o si se purga la cache de Docker.
+Antes se usaba una URL prefirmada, que caduca como maximo a los 7 dias: cada
+reconstruccion sin cache (version nueva de Odoo, servidor nuevo, cache purgada)
+exigia regenerarla a mano. Con el token ese paso desaparece.
 
-Regla practica: **refrescar `R2_URL` es el paso previo a cualquier
-reconstruccion completa.**
+### Crear el token (una vez)
 
-Si esto llega a molestar, la alternativa es servir el archivo desde un endpoint
-con token estatico (Cloudflare Worker o Access) en lugar de una URL prefirmada.
+En Cloudflare: **R2 > Manage API Tokens > Create API Token**.
+
+| Ajuste | Valor |
+|---|---|
+| Permissions | **Object Read only** |
+| Specify bucket(s) | solo el bucket del tarball |
+| TTL | **Forever** |
+
+Cloudflare muestra el *Access Key ID* y el *Secret Access Key* **una sola vez**.
+Son `R2_ACCESS_KEY_ID` y `R2_SECRET_ACCESS_KEY` en Dokploy.
+
+Que sea de solo lectura y de un unico bucket limita el daño si se filtra: da
+acceso a descargar el tarball y a nada mas. No reutilizar aqui el token de los
+backups, que necesita escribir.
+
+### Subir un tarball
+
+El nombre del objeto **no debe llevar `+` ni espacios**. El archivo de odoo.com
+se llama `odoo_19.0+e.AAAAMMDD.tar.gz`; se sube con un nombre plano:
+
+```bash
+aws s3 cp odoo_19.0+e.20260902.tar.gz \
+  s3://TU_BUCKET/odoo-19.0-e-20260902.tar.gz \
+  --endpoint-url https://TU_ACCOUNT_ID.r2.cloudflarestorage.com
+```
+
+(Esa subida se hace con credenciales de escritura propias, no con el token de
+solo lectura.) La URL resultante es `R2_OBJECT_URL`:
+
+```
+https://TU_ACCOUNT_ID.r2.cloudflarestorage.com/TU_BUCKET/odoo-19.0-e-20260902.tar.gz
+```
+
+### Probar el token antes de desplegar
+
+Desde cualquier maquina con curl 7.75 o posterior:
+
+```bash
+curl -fsS -o /dev/null -w '%{http_code} %{size_download} bytes\n' \
+  --aws-sigv4 "aws:amz:auto:s3" --user "ACCESS_KEY_ID:SECRET_ACCESS_KEY" \
+  "https://TU_ACCOUNT_ID.r2.cloudflarestorage.com/TU_BUCKET/odoo-19.0-e-20260902.tar.gz"
+```
+
+Debe responder `200` y el tamaño del archivo. Un `403` indica token sin permiso
+sobre ese bucket o URL mal escrita; un `404`, que el objeto no existe con ese
+nombre.
 
 ---
 
 ## 7. Hechos verificados
+
+> Estas comprobaciones se hicieron con la imagen de septiembre de 2026, cuando
+> el fuente estaba en `/opt/odoo` y los addons en `/mnt`. Las rutas de esta
+> seccion son las de entonces; las vigentes estan en la seccion 1.
 
 Comprobados sobre la instalacion real, no deducidos de la documentacion:
 
@@ -201,8 +352,9 @@ Comprobados sobre la instalacion real, no deducidos de la documentacion:
   real y revisar que la URL no aparezca en los logs de build.
 - **Websockets.** El puerto 8072 esta expuesto; comprobar que el proxy de
   Dokploy lo enruta para que el chat y las notificaciones en vivo funcionen.
-- **Copias de seguridad.** Definir respaldo del volumen `db-data` (base) y
-  `odoo-data` (filestore con los adjuntos). Ambos son imprescindibles.
+- **Copias de seguridad.** Definir respaldo de la base (servicio Postgres de
+  Dokploy) y del volumen `odoo-data` (filestore con los adjuntos). Ambos son
+  imprescindibles.
 
 ---
 
@@ -221,7 +373,7 @@ Ademas, ese puerto 8072 **solo existe si `workers > 0`** (ya esta: `workers = 5`
 **Como se hace en Dokploy (Traefik).** El dominio principal (8069) se configura
 por la UI de Dokploy como siempre. La ruta del websocket la añade el bloque
 `labels` del servicio `odoo` en `docker-compose.yml`: crea un router
-`odoo-ws` con `PathPrefix(/websocket)` y prioridad alta que apunta al puerto
+`importadora-<ENV_NAME>-ws` con `PathPrefix(/websocket)` y prioridad alta que apunta al puerto
 8072. Traefik gestiona solo el *upgrade* de websocket y las cabeceras
 `X-Forwarded-*`, asi que no hace falta middleware extra.
 
@@ -237,25 +389,60 @@ del navegador, la peticion a `wss://TU_DOMINIO/websocket` debe quedar en estado
 
 ---
 
-## 10. Actualizacion de modulos (variable UPGRADE)
+## 10. Actualizacion de modulos
 
-El `entrypoint.sh` inicializa la base la primera vez, pero **no actualiza los
-modulos por si solo**: subir una version nueva del fuente o cambiar un modulo no
-aplica sus migraciones hasta que se corre `-u`.
+Desplegar codigo nuevo no basta: si un modulo cambia modelos, vistas o datos,
+hay que **actualizarlo** en la base para que se apliquen. El `entrypoint.sh` lo
+hace solo, antes de arrancar el servidor.
 
-Para eso esta la variable `UPGRADE`:
+### La regla (la misma de Odoo.sh)
 
-- **Operacion normal:** `UPGRADE` vacio. Los arranques no actualizan nada (es
-  lento y no debe correr en cada boot).
-- **Despliegue de actualizacion:** pon `UPGRADE=all` en Dokploy, despliega (el
-  entrypoint corre `-u all --stop-after-init` antes de arrancar los workers,
-  aplicando las migraciones) y **vuelve a vaciar `UPGRADE`** para el siguiente
-  despliegue. Para un cambio acotado, `UPGRADE=nombre_del_modulo`.
+En cada arranque se compara, para cada modulo instalado, la version de su
+`__manifest__.py` en la imagen con la que la base tiene registrada. **Se
+actualizan los modulos cuya version subio.** Si no subio ninguna, no se
+actualiza nada y el arranque no se alarga.
 
-Encaja en el "Ritual de actualizacion de Odoo" (seccion 5): tras subir el
-tarball nuevo y cambiar `ODOO_VERSION`/`ODOO_SHA256`, haz **un** despliegue con
-`UPGRADE=all`, verifica, y limpia la variable.
+Consecuencia para quien desarrolla: **al cambiar modelos, vistas o datos de un
+modulo, subir su version** (`19.0.1.0.0` -> `19.0.1.0.1`). Sin eso, el codigo
+llega al contenedor pero la base no se entera.
 
-> Antes de un `UPGRADE=all` en produccion, ten un backup reciente (ver
-> [backups.md](backups.md)) y, si puedes, pruebalo primero en staging (ver
+Para ver que haria sin ejecutar nada:
+
+```bash
+docker compose exec odoo odoo-modules-to-upgrade
+```
+
+Imprime los modulos a actualizar. Tambien avisa de dos situaciones anomalas:
+modulos instalados en la base que **no estan en la imagen**, y modulos cuya
+version en la imagen es **anterior** a la de la base.
+
+### La variable UPGRADE
+
+Normalmente va **vacia**. Solo se usa para forzar:
+
+| Valor | Efecto |
+|---|---|
+| *(vacio)* | Automatico: los modulos cuya version subio |
+| `all` | Todos los modulos instalados |
+| `mod_a,mod_b` | Solo esos, sin mirar versiones |
+| `none` | No actualizar nada |
+
+`UPGRADE=all` hace falta en un caso: **al cambiar el fuente de Odoo** (seccion
+5). Los modulos propios de Odoo no suben de version entre una compilacion y la
+siguiente, asi que la comparacion automatica no los detecta. Tras ese
+despliegue, **volver a vaciar la variable**: `all` tarda varios minutos y se
+repetiria en cada reinicio.
+
+### Si la actualizacion falla
+
+El contenedor **no arranca**: es preferible a servir codigo nuevo sobre un
+esquema viejo. El motivo queda en el log del contenedor. Odoo aplica cada
+modulo en una transaccion, asi que un fallo no deja ese modulo a medias.
+
+Para volver atras: desplegar el commit anterior. Si la actualizacion llego a
+modificar datos antes de fallar en otro modulo, restaurar el backup previo (ver
+[backups.md](backups.md)).
+
+> Antes de un despliegue que suba versiones en produccion, ten un backup
+> reciente y pruebalo primero en staging (ver
 > [entornos-staging.md](entornos-staging.md)).

@@ -69,6 +69,12 @@ for v in $required; do
   [ -n "$val" ] || die "Falta la variable '$v' en $ENV_FILE"
 done
 
+# data_dir de Odoo dentro de cada contenedor. Son independientes porque durante
+# la migracion produccion puede seguir con la imagen antigua (/var/lib/odoo)
+# mientras staging ya usa la estructura tipo Odoo.sh.
+PROD_DATA_DIR="${PROD_DATA_DIR:-/home/odoo/data}"
+STAGING_DATA_DIR="${STAGING_DATA_DIR:-/home/odoo/data}"
+
 # --- Barreras de seguridad: NUNCA tocar produccion -----------------------
 [ "$STAGING_DB" != "$PROD_DB" ] \
   || die "STAGING_DB y PROD_DB son iguales ('$STAGING_DB'). Abortando."
@@ -77,11 +83,36 @@ done
 [ "$STAGING_ODOO_CONTAINER" != "$PROD_ODOO_CONTAINER" ] \
   || die "El contenedor de Odoo de staging es el de produccion. Abortando."
 
-# Verifica que los contenedores existen antes de empezar.
-for c in "$PROD_DB_CONTAINER" "$PROD_ODOO_CONTAINER" \
-         "$STAGING_DB_CONTAINER" "$STAGING_ODOO_CONTAINER"; do
-  docker inspect "$c" >/dev/null 2>&1 || die "Contenedor no encontrado: $c"
+# Los contenedores se pueden indicar por su nombre exacto o por el nombre del
+# SERVICIO. Hace falta lo segundo con las bases de datos nativas de Dokploy:
+# corren como servicio de Swarm y su contenedor se llama
+# "<servicio>.1.<id aleatorio>", que cambia en cada reinicio.
+#
+# 'docker container inspect' y no 'docker inspect' a secas: este ultimo acepta
+# cualquier tipo de objeto y da por bueno el nombre de un SERVICIO, con lo que
+# el nombre quedaria sin traducir y los 'docker exec' posteriores fallarian.
+resolve_container() {
+  if docker container inspect "$1" >/dev/null 2>&1; then
+    printf '%s\n' "$1"
+    return 0
+  fi
+  docker ps --filter "name=^$1\\." --format '{{.Names}}' | head -n 1
+}
+# Verifica que los contenedores existen antes de empezar y fija su nombre real.
+for v in PROD_DB_CONTAINER PROD_ODOO_CONTAINER \
+         STAGING_DB_CONTAINER STAGING_ODOO_CONTAINER; do
+  eval "name=\$$v"
+  found="$(resolve_container "$name")"
+  [ -n "$found" ] || die "Contenedor o servicio no encontrado: $name"
+  eval "$v=\$found"
 done
+
+# Segunda barrera, ya con los nombres reales: dos nombres de servicio distintos
+# no deben resolver al mismo contenedor.
+[ "$STAGING_DB_CONTAINER" != "$PROD_DB_CONTAINER" ] \
+  || die "La base de staging y la de produccion son el mismo contenedor. Abortando."
+[ "$STAGING_ODOO_CONTAINER" != "$PROD_ODOO_CONTAINER" ] \
+  || die "El Odoo de staging y el de produccion son el mismo contenedor. Abortando."
 
 STAGING_ODOO_IMAGE="$(docker inspect -f '{{.Config.Image}}' "$STAGING_ODOO_CONTAINER")"
 
@@ -125,9 +156,9 @@ log "    dump: $(du -h "$DUMP" | cut -f1)"
 # 2. Filestore de produccion
 # =========================================================================
 log "2/8 Copiando filestore de produccion..."
-if docker exec "$PROD_ODOO_CONTAINER" test -d "/var/lib/odoo/filestore/$PROD_DB"; then
+if docker exec "$PROD_ODOO_CONTAINER" test -d "$PROD_DATA_DIR/filestore/$PROD_DB"; then
   docker exec "$PROD_ODOO_CONTAINER" \
-    tar czf - -C "/var/lib/odoo/filestore" "$PROD_DB" > "$FILESTORE"
+    tar czf - -C "$PROD_DATA_DIR/filestore" "$PROD_DB" > "$FILESTORE"
   log "    filestore: $(du -h "$FILESTORE" | cut -f1)"
 else
   log "    (produccion aun no tiene filestore; se omite)"
@@ -160,25 +191,44 @@ done
 # =========================================================================
 log "4/8 Restaurando la base en staging..."
 # Se restaura como el ROL DE APLICACION: los objetos quedan de su propiedad,
-# igual que en produccion. pg_restore puede emitir avisos ignorables.
+# igual que en produccion.
+#
+# Sin --jobs: el dump llega por la entrada estandar y pg_restore no admite la
+# restauracion en paralelo desde ahi; aborta sin cargar nada ("parallel restore
+# from standard input is not supported"). En serie tarda algo mas, pero carga.
 set +e
 docker exec -i -e PGPASSWORD="$APP_DB_PASSWORD" "$STAGING_DB_CONTAINER" \
   pg_restore -U "$APP_DB_USER" --no-owner --no-privileges \
-             --jobs=4 -d "$STAGING_DB" < "$DUMP"
+             -d "$STAGING_DB" < "$DUMP"
 rc=$?
 set -e
-[ "$rc" -eq 0 ] || log "    pg_restore termino con avisos (rc=$rc); continuo."
+
+# pg_restore devuelve un codigo distinto de cero tambien por avisos ignorables
+# (un comentario o una extension que el rol no puede tocar), asi que el codigo
+# solo no distingue "cargo con avisos" de "no cargo nada". Se comprueba el
+# resultado: una base de Odoo restaurada tiene modulos instalados.
+installed="$(stg_app psql -U "$APP_DB_USER" -d "$STAGING_DB" -tAc \
+  "SELECT count(*) FROM ir_module_module WHERE state = 'installed'" 2>/dev/null || true)"
+case "$installed" in
+  ''|*[!0-9]*|0)
+    die "La restauracion no cargo la base (pg_restore rc=$rc, modulos instalados: '${installed:-ninguno}'). Staging queda PARADO y sin datos." ;;
+esac
+if [ "$rc" -eq 0 ]; then
+  log "    Base restaurada: $installed modulos instalados."
+else
+  log "    Base restaurada con avisos de pg_restore (rc=$rc): $installed modulos instalados."
+fi
 
 log "    Restaurando filestore en staging..."
 # Siempre se limpia el filestore viejo de staging; solo se extrae si prod tenia.
 docker run --rm --volumes-from "$STAGING_ODOO_CONTAINER" \
   --entrypoint sh "$STAGING_ODOO_IMAGE" -c \
-  "rm -rf '/var/lib/odoo/filestore/$STAGING_DB' \
-   && mkdir -p '/var/lib/odoo/filestore/$STAGING_DB'"
+  "rm -rf '$STAGING_DATA_DIR/filestore/$STAGING_DB' \
+   && mkdir -p '$STAGING_DATA_DIR/filestore/$STAGING_DB'"
 if [ -s "$FILESTORE" ]; then
   docker run --rm -i --volumes-from "$STAGING_ODOO_CONTAINER" \
     --entrypoint sh "$STAGING_ODOO_IMAGE" -c \
-    "tar xzf - -C '/var/lib/odoo/filestore/$STAGING_DB' --strip-components=1" \
+    "tar xzf - -C '$STAGING_DATA_DIR/filestore/$STAGING_DB' --strip-components=1" \
     < "$FILESTORE"
 fi
 
@@ -188,11 +238,12 @@ fi
 log "5/8 Neutralizando la base de staging..."
 # Se lanza como proceso efimero que comparte la red del contenedor de BD de
 # staging (asi la alcanza en 127.0.0.1) y usa el addons_path del odoo.conf de
-# la imagen, para que corran los neutralize.sql de TODOS los modulos.
+# la imagen (lo localiza la variable ODOO_RC que la propia imagen define), para
+# que corran los neutralize.sql de TODOS los modulos.
 docker run --rm \
   --network "container:$STAGING_DB_CONTAINER" \
   --entrypoint python3 "$STAGING_ODOO_IMAGE" \
-  /opt/odoo/odoo-bin neutralize -c /etc/odoo/odoo.conf \
+  /home/odoo/src/odoo/odoo-bin neutralize \
     --db_host=127.0.0.1 --db_port=5432 \
     --db_user="$APP_DB_USER" --db_password="$APP_DB_PASSWORD" \
     -d "$STAGING_DB"
