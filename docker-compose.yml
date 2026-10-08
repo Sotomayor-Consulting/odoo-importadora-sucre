@@ -59,6 +59,10 @@ services:
       BACKUP_R2_ACCESS_KEY_ID: ${BACKUP_R2_ACCESS_KEY_ID:-}
       BACKUP_R2_SECRET_ACCESS_KEY: ${BACKUP_R2_SECRET_ACCESS_KEY:-}
       BACKUP_HEALTHCHECK_URL: ${BACKUP_HEALTHCHECK_URL:-}
+      # --- Refresco de staging (las consume odoo-refresh-staging; ver
+      # docs/entornos-staging.md). DOMAIN fija la direccion web de la copia.
+      DOMAIN: ${DOMAIN}
+      REFRESH_SOURCE_PREFIX: ${REFRESH_SOURCE_PREFIX:-prod}
       # --- Operacion (las consume entrypoint.sh, no Odoo).
       # En staging va a "1": no inicializa la base (se restaura con
       # refresh-staging.sh). En produccion se deja vacio.

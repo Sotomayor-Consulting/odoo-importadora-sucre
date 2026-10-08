@@ -198,6 +198,8 @@ cambie de servidor o de versión de Odoo.
 ## 7. Scripts anteriores
 
 `scripts/backup.sh` y `scripts/refresh-staging.sh` son los scripts originales,
-que corren **en el servidor** y usan `docker exec`. Se conservan solo para
-operar los contenedores del proyecto antiguo de Dokploy durante la migración:
-esas imágenes no traen `odoo-backup`. No usar en el proyecto nuevo.
+que corren **en el servidor** y usan `docker exec`. Los sustituyen
+`odoo-backup` y `odoo-refresh-staging`, que corren dentro del contenedor.
+
+Se conservan solo hasta terminar la migración desde el proyecto antiguo de
+Dokploy. No usar en el proyecto nuevo.
