@@ -56,7 +56,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends ca-certificates
 # hay que revisarla contra debian/control al cambiar de version de Odoo (ver
 # "Ritual de actualizacion" en docs/despliegue-dokploy.md).
 RUN apt-get update && apt-get install -y --no-install-recommends \
-      ca-certificates curl gnupg xz-utils locales \
+      ca-certificates curl gnupg xz-utils locales rclone \
       postgresql-client-${PG_MAJOR} \
       nodejs npm node-less \
       fonts-noto fonts-noto-cjk fonts-liberation \
@@ -107,11 +107,12 @@ RUN curl -fsSL -o /tmp/wkhtmltox.deb "${WKHTMLTOPDF_URL}" \
 #       custom_addons/           modulos propios del cliente
 #       shared/                  submodulo odoo-sci-shared-addons
 #     data/                    data_dir: filestore y sesiones (VOLUMEN)
+#     backups/                 copias locales: daily/ weekly/ monthly/ (VOLUMEN)
 #
 # Regla de permisos: el CODIGO y la CONFIGURACION son de root y de solo lectura
-# para el proceso. El usuario 'odoo' solo puede escribir en data/ (sus datos) y
-# en .cache/ y .local/ (caches de herramientas, p. ej. fontconfig al generar
-# PDF). Asi, un fallo que permita ejecutar codigo dentro de Odoo no puede
+# para el proceso. El usuario 'odoo' solo puede escribir en data/ (sus datos),
+# en backups/ y en .cache/ y .local/ (caches de herramientas, p. ej. fontconfig
+# al generar PDF). Asi, un fallo que permita ejecutar codigo dentro de Odoo no puede
 # reescribir el fuente ni la configuracion.
 #
 # Por eso /home/odoo en si es de root: el dueño de un directorio puede renombrar
@@ -124,9 +125,9 @@ RUN curl -fsSL -o /tmp/wkhtmltox.deb "${WKHTMLTOPDF_URL}" \
 RUN groupadd -g 101 odoo \
  && useradd -u 100 -g 101 -md /home/odoo -s /bin/bash odoo \
  && mkdir -p /home/odoo/.config/odoo /home/odoo/src/odoo /home/odoo/src/user \
-             /home/odoo/data /home/odoo/.cache /home/odoo/.local \
+             /home/odoo/data /home/odoo/backups /home/odoo/.cache /home/odoo/.local \
  && chown root:root /home/odoo && chmod 755 /home/odoo \
- && chown odoo:odoo /home/odoo/data /home/odoo/.cache /home/odoo/.local
+ && chown odoo:odoo /home/odoo/data /home/odoo/backups /home/odoo/.cache /home/odoo/.local
 
 # El tarball vive en un bucket PRIVADO de Cloudflare R2. Se descarga con un
 # token de R2 de solo lectura: curl firma la peticion (AWS SigV4, el protocolo
@@ -186,13 +187,16 @@ COPY odoo.conf /home/odoo/.config/odoo/odoo.conf
 COPY --chmod=755 entrypoint.sh /entrypoint.sh
 # 'odoo-bin' en el PATH, como en Odoo.sh:  docker compose exec odoo odoo-bin shell
 RUN ln -s /home/odoo/src/odoo/odoo-bin /usr/local/bin/odoo-bin
+# Comandos de operacion (backup...). Se ejecutan DENTRO del contenedor, con su
+# misma configuracion:  docker compose exec odoo odoo-backup
+COPY --chmod=755 ops/bin/ /usr/local/bin/
 
 LABEL org.opencontainers.image.title="Odoo 19 Enterprise - Importadora Sucre"
 LABEL org.opencontainers.image.version="${ODOO_VERSION}"
 
-# El directorio ya existe y es de 'odoo' (creado arriba): un volumen nuevo
+# Los directorios ya existen y son de 'odoo' (creados arriba): un volumen nuevo
 # hereda ese dueño al montarse por primera vez.
-VOLUME ["/home/odoo/data"]
+VOLUME ["/home/odoo/data", "/home/odoo/backups"]
 EXPOSE 8069 8072
 WORKDIR /home/odoo
 USER odoo

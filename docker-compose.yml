@@ -47,6 +47,18 @@ services:
       # Conexiones a Postgres por proceso. (workers + 2) x db_maxconn debe
       # caber en el max_connections de Postgres.
       ODOO_DB_MAXCONN: ${ODOO_DB_MAXCONN:-20}
+      # --- Backups (las consume odoo-backup; ver docs/backups.md).
+      # ENV_NAME separa en R2 las copias de cada entorno.
+      ENV_NAME: ${ENV_NAME}
+      BACKUP_KEEP_DAILY: ${BACKUP_KEEP_DAILY:-7}
+      BACKUP_KEEP_WEEKLY: ${BACKUP_KEEP_WEEKLY:-4}
+      BACKUP_KEEP_MONTHLY: ${BACKUP_KEEP_MONTHLY:-3}
+      # Sin bucket, el backup queda solo en el servidor (el script lo avisa).
+      BACKUP_R2_BUCKET: ${BACKUP_R2_BUCKET:-}
+      BACKUP_R2_ENDPOINT: ${BACKUP_R2_ENDPOINT:-}
+      BACKUP_R2_ACCESS_KEY_ID: ${BACKUP_R2_ACCESS_KEY_ID:-}
+      BACKUP_R2_SECRET_ACCESS_KEY: ${BACKUP_R2_SECRET_ACCESS_KEY:-}
+      BACKUP_HEALTHCHECK_URL: ${BACKUP_HEALTHCHECK_URL:-}
       # --- Operacion (las consume entrypoint.sh, no Odoo).
       # En staging va a "1": no inicializa la base (se restaura con
       # refresh-staging.sh). En produccion se deja vacio.
@@ -59,6 +71,10 @@ services:
       # Filestore y sesiones. Sin esto se pierden los adjuntos en cada
       # redespliegue y las sesiones se invalidan.
       - odoo-data:/home/odoo/data
+      # Copias de seguridad locales (daily/ weekly/ monthly/). En un volumen
+      # aparte para que sobrevivan a los redespliegues y no se mezclen con los
+      # datos de la aplicacion.
+      - odoo-backups:/home/odoo/backups
     expose:
       - "8069"   # HTTP
       - "8072"   # websockets (chat, notificaciones en vivo)
@@ -137,3 +153,4 @@ networks:
 
 volumes:
   odoo-data:
+  odoo-backups:

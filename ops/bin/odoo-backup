@@ -1,0 +1,194 @@
+#!/usr/bin/env bash
+#
+# odoo-backup — Backup de la base de Odoo de ESTE contenedor.
+#
+# Se ejecuta DENTRO del contenedor de Odoo (no en el servidor):
+#
+#   docker compose exec odoo odoo-backup
+#
+# o como tarea programada de Dokploy sobre el servicio 'odoo'.
+#
+# Usa el comando nativo 'odoo-bin db dump', que genera un unico .zip con la
+# base (dump.sql), el filestore y un manifiesto. Es el mismo formato de backup
+# de Odoo.sh: se restaura con 'odoo-bin db load' en cualquier Odoo de la misma
+# version, y la base y sus adjuntos van siempre juntos y coherentes entre si.
+#
+# Cada ejecucion:
+#   1. Vuelca la base a $BACKUP_DIR/daily/<base>_<AAAAMMDD_HHMMSS>.zip
+#   2. Comprueba que el .zip es valido y contiene dump.sql
+#   3. Lo promueve a weekly/ (domingos) y monthly/ (dia 1)
+#   4. Aplica la retencion local: 7 diarios, 4 semanales, 3 mensuales
+#   5. Lo sube a R2, con los mismos tres niveles
+#   6. Avisa al monitor (si hay uno configurado)
+#
+# La conexion a la base sale de las variables PG* del contenedor. El resto de
+# la configuracion (ver env.example):
+#
+#   BACKUP_DIR                   /home/odoo/backups
+#   BACKUP_KEEP_DAILY            7
+#   BACKUP_KEEP_WEEKLY           4
+#   BACKUP_KEEP_MONTHLY          3
+#   BACKUP_R2_BUCKET             (vacio = solo copia local)
+#   BACKUP_R2_ENDPOINT           https://<cuenta>.r2.cloudflarestorage.com
+#   BACKUP_R2_ACCESS_KEY_ID
+#   BACKUP_R2_SECRET_ACCESS_KEY
+#   BACKUP_R2_PREFIX             $ENV_NAME
+#   BACKUP_HEALTHCHECK_URL       (vacio = sin aviso)
+#
+set -euo pipefail
+
+log() { printf '[%s] %s\n' "$(date -u +'%F %T')" "$*"; }
+die() { printf 'ERROR: %s\n' "$*" >&2; exit 1; }
+
+: "${PGDATABASE:?Falta PGDATABASE (este script corre dentro del contenedor de Odoo)}"
+
+BACKUP_DIR="${BACKUP_DIR:-/home/odoo/backups}"
+KEEP_DAILY="${BACKUP_KEEP_DAILY:-7}"
+KEEP_WEEKLY="${BACKUP_KEEP_WEEKLY:-4}"
+KEEP_MONTHLY="${BACKUP_KEEP_MONTHLY:-3}"
+R2_BUCKET="${BACKUP_R2_BUCKET:-}"
+R2_PREFIX="${BACKUP_R2_PREFIX:-${ENV_NAME:-}}"
+HEALTHCHECK_URL="${BACKUP_HEALTHCHECK_URL:-}"
+
+for n in "$KEEP_DAILY" "$KEEP_WEEKLY" "$KEEP_MONTHLY"; do
+  case "$n" in ''|*[!0-9]*) die "Las retenciones BACKUP_KEEP_* deben ser numeros enteros." ;; esac
+done
+
+# --- Aviso al monitor -----------------------------------------------------
+# Un backup que falla en silencio es peor que no tener backup: se avisa tanto
+# del exito como del fallo. Sin URL configurada no hace nada.
+ping() {
+  [ -n "$HEALTHCHECK_URL" ] || return 0
+  curl -fsS -m 10 --retry 3 -o /dev/null "${HEALTHCHECK_URL}$1" || true
+}
+
+DONE=""
+PART=""
+on_exit() {
+  if [ -z "$DONE" ]; then
+    # No dejar un .zip a medias que parezca un backup valido.
+    if [ -n "$PART" ] && [ -f "$PART" ]; then rm -f -- "$PART"; fi
+    ping /fail
+    echo "Backup ABORTADO." >&2
+  fi
+}
+trap on_exit EXIT
+
+mkdir -p "$BACKUP_DIR/daily" "$BACKUP_DIR/weekly" "$BACKUP_DIR/monthly"
+
+# --- Un backup a la vez ---------------------------------------------------
+exec 9>"$BACKUP_DIR/.lock"
+flock -n 9 || die "Ya hay un backup en curso."
+
+ping /start
+
+STAMP="$(date -u +'%Y%m%d_%H%M%S')"
+DAY="${STAMP%%_*}"
+NAME="${PGDATABASE}_${STAMP}.zip"
+FINAL="$BACKUP_DIR/daily/$NAME"
+PART="$BACKUP_DIR/daily/.$NAME.part"
+
+# =========================================================================
+# 1. Volcado (base + filestore + manifiesto en un solo .zip)
+# =========================================================================
+log "Volcando '$PGDATABASE'..."
+odoo-bin db dump "$PGDATABASE" "$PART"
+
+# =========================================================================
+# 2. Verificacion: que sea un zip integro y lleve la base dentro
+# =========================================================================
+python3 - "$PART" <<'PY' || die "El .zip generado no es valido."
+import sys, zipfile
+with zipfile.ZipFile(sys.argv[1]) as z:
+    bad = z.testzip()
+    if bad:
+        sys.exit(f"archivo corrupto dentro del zip: {bad}")
+    info = z.getinfo("dump.sql")          # KeyError si falta
+    if info.file_size == 0:
+        sys.exit("dump.sql esta vacio")
+    z.getinfo("manifest.json")
+PY
+mv -- "$PART" "$FINAL"
+PART=""
+log "  $NAME: $(du -h "$FINAL" | cut -f1)"
+
+# =========================================================================
+# 3. Promocion a semanal y mensual
+# =========================================================================
+# Enlace duro, no copia: el mismo archivo aparece en dos niveles sin ocupar el
+# doble. Borrarlo de daily/ no lo borra de weekly/.
+#
+# Se promueve los domingos / el dia 1, o si el nivel esta vacio (para que la
+# primera ejecucion ya deje un punto de partida). Nunca dos del mismo dia.
+TIERS="daily"
+promote() {
+  local tier="$1" due="$2"
+  if compgen -G "$BACKUP_DIR/$tier/${PGDATABASE}_${DAY}_*.zip" >/dev/null; then
+    return 0
+  fi
+  if [ "$due" = 1 ] || ! compgen -G "$BACKUP_DIR/$tier/${PGDATABASE}_*.zip" >/dev/null; then
+    ln -- "$FINAL" "$BACKUP_DIR/$tier/$NAME"
+    TIERS="$TIERS $tier"
+    log "  promovido a $tier/"
+  fi
+}
+[ "$(date -u +%u)" = 7 ] && sunday=1 || sunday=0
+[ "$(date -u +%d)" = 01 ] && first=1 || first=0
+promote weekly "$sunday"
+promote monthly "$first"
+
+# =========================================================================
+# 4. Retencion local
+# =========================================================================
+# Solo toca archivos con el patron exacto de este script, dentro de su nivel.
+prune() {
+  local tier="$1" keep="$2" f n=0
+  while IFS= read -r f; do
+    n=$((n + 1))
+    if [ "$n" -gt "$keep" ]; then
+      rm -f -- "$f"
+      log "  retencion: eliminado $tier/$(basename "$f")"
+    fi
+  done < <(find "$BACKUP_DIR/$tier" -maxdepth 1 -type f \
+             -name "${PGDATABASE}_????????_??????.zip" | sort -r)
+}
+prune daily "$KEEP_DAILY"
+prune weekly "$KEEP_WEEKLY"
+prune monthly "$KEEP_MONTHLY"
+
+# =========================================================================
+# 5. Copia fuera del servidor (R2)
+# =========================================================================
+# Un backup que solo vive en el servidor se pierde con el servidor. En R2 no se
+# borra desde aqui: la retencion la aplican las reglas de ciclo de vida del
+# bucket, por prefijo. Asi el token de este contenedor no necesita permiso de
+# borrado y un fallo del script no puede eliminar copias buenas.
+if [ -n "$R2_BUCKET" ]; then
+  : "${BACKUP_R2_ENDPOINT:?Falta BACKUP_R2_ENDPOINT}"
+  : "${BACKUP_R2_ACCESS_KEY_ID:?Falta BACKUP_R2_ACCESS_KEY_ID}"
+  : "${BACKUP_R2_SECRET_ACCESS_KEY:?Falta BACKUP_R2_SECRET_ACCESS_KEY}"
+  [ -n "$R2_PREFIX" ] || die "Falta BACKUP_R2_PREFIX (o ENV_NAME): sin prefijo, dos entornos mezclarian sus copias."
+
+  # rclone se configura solo con variables de entorno: no deja credenciales en
+  # ningun archivo del contenedor.
+  export RCLONE_CONFIG=/dev/null
+  export RCLONE_CONFIG_R2_TYPE="${BACKUP_R2_TYPE:-s3}"
+  export RCLONE_CONFIG_R2_PROVIDER=Cloudflare
+  export RCLONE_CONFIG_R2_ENDPOINT="$BACKUP_R2_ENDPOINT"
+  export RCLONE_CONFIG_R2_ACCESS_KEY_ID="$BACKUP_R2_ACCESS_KEY_ID"
+  export RCLONE_CONFIG_R2_SECRET_ACCESS_KEY="$BACKUP_R2_SECRET_ACCESS_KEY"
+  export RCLONE_CONFIG_R2_NO_CHECK_BUCKET=true
+
+  for tier in $TIERS; do
+    dest="r2:$R2_BUCKET/$R2_PREFIX/$tier/$NAME"
+    log "Subiendo a $dest ..."
+    rclone copyto --quiet "$FINAL" "$dest"
+  done
+  log "  Subida completada."
+else
+  log "AVISO: BACKUP_R2_BUCKET sin definir. El backup queda SOLO en este servidor."
+fi
+
+DONE=1
+ping ""
+log "Backup completo: $FINAL"
