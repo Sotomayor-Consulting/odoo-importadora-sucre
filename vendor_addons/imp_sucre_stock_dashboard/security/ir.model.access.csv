@@ -1,0 +1,3 @@
+id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
+access_imp_stock_inflow_report,imp.stock.inflow.report,model_imp_stock_inflow_report,stock.group_stock_manager,1,0,0,0
+access_imp_stock_outflow_report,imp.stock.outflow.report,model_imp_stock_outflow_report,stock.group_stock_manager,1,0,0,0
