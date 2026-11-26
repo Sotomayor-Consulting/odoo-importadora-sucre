@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="view_overdue_bypass_wizard_form" model="ir.ui.view">
+        <field name="name">account.overdue.bypass.wizard.form</field>
+        <field name="model">account.overdue.bypass.wizard</field>
+        <field name="arch" type="xml">
+            <form string="Bypass Overdue Invoices Block">
+                <div class="alert alert-warning mb-3" role="alert">
+                    <field name="overdue_message" readonly="1" class="mb-0"/>
+                </div>
+                <group>
+                    <field name="res_model" invisible="1"/>
+                    <field name="res_id" invisible="1"/>
+                    <field name="partner_id" readonly="1" options="{'no_open': True}"/>
+                    <field name="reason" default_focus="1"
+                           placeholder="Explain the authorization reason to bypass the overdue block..."/>
+                </group>
+                <footer>
+                    <button name="action_confirm_bypass" type="object"
+                            string="Authorize &amp; Post Invoice"
+                            class="btn-primary"
+                            data-hotkey="q"
+                            invisible="res_model != 'account.move'"/>
+                    <button name="action_confirm_bypass" type="object"
+                            string="Authorize &amp; Confirm Order"
+                            class="btn-primary"
+                            data-hotkey="q"
+                            invisible="res_model != 'sale.order'"/>
+                    <button string="Cancel" class="btn-secondary" special="cancel" data-hotkey="x"/>
+                </footer>
+            </form>
+        </field>
+    </record>
+</odoo>

@@ -1,0 +1,2 @@
+id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
+access_account_overdue_bypass_wizard_bypass,account.overdue.bypass.wizard.bypass,model_account_overdue_bypass_wizard,group_overdue_control_bypass,1,1,1,1

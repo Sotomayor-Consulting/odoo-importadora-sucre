@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="view_partner_property_form_overdue_control" model="ir.ui.view">
+        <field name="name">res.partner.property.form.overdue.control</field>
+        <field name="model">res.partner</field>
+        <field name="inherit_id" ref="account.view_partner_property_form"/>
+        <field name="arch" type="xml">
+            <xpath expr="//group[@name='credit_limits']" position="after">
+                <group string="Overdue Invoices Control" name="overdue_control"
+                       groups="account.group_account_manager,account_overdue_control.group_overdue_control_bypass">
+                    <field name="overdue_control_exempt"/>
+                    <field name="overdue_control_exempt_reason"
+                           invisible="not overdue_control_exempt"
+                           required="overdue_control_exempt"
+                           placeholder="Reason for exempting this customer..."/>
+                </group>
+            </xpath>
+        </field>
+    </record>
+</odoo>
