@@ -1,0 +1,523 @@
+# Translation of Odoo Server.
+# This file contains the translation of the following modules:
+# 	* account_overdue_control
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: Odoo Server 19.0\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2026-11-25 22:10+0000\n"
+"PO-Revision-Date: 2026-11-25 22:10+0000\n"
+"Last-Translator: \n"
+"Language-Team: Spanish\n"
+"Language: es\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+
+#. module: account_overdue_control
+#. odoo-python
+#: code:addons/account_overdue_control/models/res_partner.py:0
+msgid ""
+"%(partner)s has %(count)s overdue invoice(s) for a total of %(amount)s."
+msgstr ""
+"%(partner)s tiene %(count)s factura(s) vencida(s) por un total de "
+"%(amount)s."
+
+#. module: account_overdue_control
+#. odoo-python
+#: code:addons/account_overdue_control/models/res_partner.py:0
+msgid ""
+"%(partner)s has %(count)s overdue receivable item(s) for a total of "
+"%(amount)s."
+msgstr ""
+"%(partner)s tiene %(count)s partida(s) por cobrar vencida(s) por un total "
+"de %(amount)s."
+
+#. module: account_overdue_control
+#: model_terms:ir.ui.view,arch_db:account_overdue_control.view_order_form_overdue_control
+msgid ""
+"<span> This document will remain as a quotation until overdue invoices are\n"
+"                        settled or authorized.</span>"
+msgstr ""
+"<span> Este documento permanecerá como cotización hasta que se paguen las\n"
+"                        facturas vencidas o se autorice su omisión.</span>"
+
+#. module: account_overdue_control
+#: model_terms:ir.ui.view,arch_db:account_overdue_control.view_order_form_overdue_control
+msgid "<strong class=\"text text-danger d-block\">Quotation blocked</strong>"
+msgstr "<strong class=\"text text-danger d-block\">Cotización bloqueada</strong>"
+
+#. module: account_overdue_control
+#: model_terms:ir.ui.view,arch_db:account_overdue_control.view_move_form_overdue_control
+msgid "<strong>Invoicing blocked:</strong>"
+msgstr "<strong>Facturación bloqueada:</strong>"
+
+#. module: account_overdue_control
+#. odoo-python
+#: code:addons/account_overdue_control/models/sale_order.py:0
+msgid ""
+"A bypass reason is required to confirm the following sales orders for customers with overdue invoices:\n"
+"%(lines)s\n"
+"\n"
+"Use the 'Bypass block' button on the quotation to enter the authorization reason."
+msgstr ""
+"Se requiere un motivo de omisión para confirmar las siguientes órdenes de venta de clientes con facturas vencidas:\n"
+"%(lines)s\n"
+"\n"
+"Use el botón 'Omitir bloqueo' en la cotización para ingresar el motivo de autorización."
+
+#. module: account_overdue_control
+#. odoo-python
+#: code:addons/account_overdue_control/models/account_move.py:0
+msgid ""
+"A bypass reason is required to post the following invoices for customers with overdue invoices:\n"
+"%(lines)s\n"
+"\n"
+"Use the 'Bypass block' button on the invoice to enter the authorization reason."
+msgstr ""
+"Se requiere un motivo de omisión para publicar las siguientes facturas de clientes con facturas vencidas:\n"
+"%(lines)s\n"
+"\n"
+"Use el botón 'Omitir bloqueo' en la factura para ingresar el motivo de autorización."
+
+#. module: account_overdue_control
+#: model_terms:ir.ui.view,arch_db:account_overdue_control.view_overdue_bypass_wizard_form
+msgid "Authorize & Confirm Order"
+msgstr "Autorizar y confirmar orden"
+
+#. module: account_overdue_control
+#: model_terms:ir.ui.view,arch_db:account_overdue_control.view_overdue_bypass_wizard_form
+msgid "Authorize & Post Invoice"
+msgstr "Autorizar y publicar factura"
+
+#. module: account_overdue_control
+#: model:ir.model.fields,field_description:account_overdue_control.field_res_company__overdue_control_enabled
+#: model:ir.model.fields,field_description:account_overdue_control.field_res_config_settings__overdue_control_enabled
+#: model_terms:ir.ui.view,arch_db:account_overdue_control.res_config_settings_view_form_overdue_control
+msgid "Block Customers with Overdue Invoices"
+msgstr "Bloquear clientes con facturas vencidas"
+
+#. module: account_overdue_control
+#: model_terms:ir.ui.view,arch_db:account_overdue_control.res_config_settings_view_form_overdue_control
+msgid ""
+"Block sales order confirmation and customer invoice posting for all "
+"customers with unpaid invoices past their payment term due dates."
+msgstr ""
+"Bloquea la confirmación de órdenes de venta y la publicación de facturas "
+"para todos los clientes con facturas impagas vencidas según los días de sus "
+"términos de pago."
+
+#. module: account_overdue_control
+#: model:ir.model.fields,field_description:account_overdue_control.field_account_bank_statement_line__overdue_control_blocked
+#: model:ir.model.fields,field_description:account_overdue_control.field_account_move__overdue_control_blocked
+#: model:ir.model.fields,field_description:account_overdue_control.field_sale_order__overdue_control_blocked
+msgid "Blocked by Overdue Invoices"
+msgstr "Bloqueado por facturas vencidas"
+
+#. module: account_overdue_control
+#. odoo-python
+#: code:addons/account_overdue_control/models/account_move.py:0
+#: code:addons/account_overdue_control/models/sale_order.py:0
+#: model_terms:ir.ui.view,arch_db:account_overdue_control.view_overdue_bypass_wizard_form
+msgid "Bypass Overdue Invoices Block"
+msgstr "Omitir bloqueo por facturas vencidas"
+
+#. module: account_overdue_control
+#: model:ir.model.fields,field_description:account_overdue_control.field_account_overdue_bypass_wizard__reason
+msgid "Bypass Reason"
+msgstr "Motivo de omisión"
+
+#. module: account_overdue_control
+#: model_terms:ir.ui.view,arch_db:account_overdue_control.view_move_form_overdue_control
+#: model_terms:ir.ui.view,arch_db:account_overdue_control.view_order_form_overdue_control
+msgid "Bypass block"
+msgstr "Omitir bloqueo"
+
+#. module: account_overdue_control
+#: model:res.groups,name:account_overdue_control.group_overdue_control_bypass
+msgid "Bypass overdue invoices block"
+msgstr "Omitir bloqueo por facturas vencidas"
+
+#. module: account_overdue_control
+#: model_terms:ir.ui.view,arch_db:account_overdue_control.view_overdue_bypass_wizard_form
+msgid "Cancel"
+msgstr "Cancelar"
+
+#. module: account_overdue_control
+#: model:ir.model,name:account_overdue_control.model_res_company
+msgid "Companies"
+msgstr "Compañías"
+
+#. module: account_overdue_control
+#: model:ir.model,name:account_overdue_control.model_res_config_settings
+msgid "Config Settings"
+msgstr "Ajustes de configuración"
+
+#. module: account_overdue_control
+#: model:ir.model,name:account_overdue_control.model_res_partner
+msgid "Contact"
+msgstr "Contacto"
+
+#. module: account_overdue_control
+#: model:ir.model.fields,field_description:account_overdue_control.field_account_overdue_bypass_wizard__partner_id
+msgid "Customer"
+msgstr "Cliente"
+
+#. module: account_overdue_control
+#: model:ir.model.fields.selection,name:account_overdue_control.selection__account_overdue_bypass_wizard__res_model__account_move
+msgid "Customer Invoice"
+msgstr "Factura de cliente"
+
+#. module: account_overdue_control
+#: model:ir.model.fields,field_description:account_overdue_control.field_account_overdue_bypass_wizard__res_id
+msgid "Document ID"
+msgstr "ID del documento"
+
+#. module: account_overdue_control
+#: model:ir.model.fields,field_description:account_overdue_control.field_account_overdue_bypass_wizard__res_model
+msgid "Document Model"
+msgstr "Modelo del documento"
+
+#. module: account_overdue_control
+#: model:ir.model.fields,field_description:account_overdue_control.field_res_company__overdue_cutoff_date
+#: model:ir.model.fields,field_description:account_overdue_control.field_res_config_settings__overdue_cutoff_date
+msgid "Exclude Overdue Items Older Than"
+msgstr "Excluir vencidos anteriores a"
+
+#. module: account_overdue_control
+#: model:ir.model.fields,field_description:account_overdue_control.field_res_partner__overdue_control_exempt
+#: model:ir.model.fields,field_description:account_overdue_control.field_res_users__overdue_control_exempt
+msgid "Exempt from Overdue Control"
+msgstr "Exento del control de vencidas"
+
+#. module: account_overdue_control
+#: model:ir.model.fields,field_description:account_overdue_control.field_res_partner__overdue_control_exempt_reason
+#: model:ir.model.fields,field_description:account_overdue_control.field_res_users__overdue_control_exempt_reason
+msgid "Exemption Reason"
+msgstr "Motivo de exención"
+
+#. module: account_overdue_control
+#: model_terms:ir.ui.view,arch_db:account_overdue_control.view_overdue_bypass_wizard_form
+msgid "Explain the authorization reason to bypass the overdue block..."
+msgstr "Indique el motivo de autorización para omitir el bloqueo por mora..."
+
+#. module: account_overdue_control
+#: model:ir.model.fields,help:account_overdue_control.field_res_partner__overdue_control_exempt
+#: model:ir.model.fields,help:account_overdue_control.field_res_users__overdue_control_exempt
+msgid ""
+"If checked, this customer is exempt from the overdue invoices block on sales"
+" orders and customer invoices."
+msgstr ""
+"Si está marcado, este cliente queda exento del bloqueo por facturas "
+"vencidas en órdenes de venta y facturas de cliente."
+
+#. module: account_overdue_control
+#: model:ir.model.fields,field_description:account_overdue_control.field_res_company__overdue_include_entries
+#: model:ir.model.fields,field_description:account_overdue_control.field_res_config_settings__overdue_include_entries
+msgid "Include Receivable Journal Entries"
+msgstr "Incluir asientos contables contra CxC"
+
+#. module: account_overdue_control
+#: model:ir.model.fields,help:account_overdue_control.field_res_company__overdue_include_entries
+#: model:ir.model.fields,help:account_overdue_control.field_res_config_settings__overdue_include_entries
+msgid ""
+"Include posted unreconciled debit journal items (e.g. imported opening "
+"balances against accounts receivable) when evaluating overdue customer debt."
+msgstr ""
+"Incluye los apuntes contables publicados y no conciliados en el debe (por "
+"ejemplo, saldos iniciales importados contra cuentas por cobrar) al evaluar "
+"la mora del cliente."
+
+#. module: account_overdue_control
+#: model:ir.model,name:account_overdue_control.model_account_move
+msgid "Journal Entry"
+msgstr "Asiento contable"
+
+#. module: account_overdue_control
+#: model:ir.model.fields,help:account_overdue_control.field_account_overdue_bypass_wizard__reason
+msgid ""
+"Mandatory reason explaining why this document is authorized despite the "
+"customer having overdue invoices."
+msgstr ""
+"Motivo obligatorio que explica por qué se autoriza este documento a pesar "
+"de que el cliente tiene facturas vencidas."
+
+#. module: account_overdue_control
+#: model:ir.model.fields,help:account_overdue_control.field_res_company__overdue_grace_days
+#: model:ir.model.fields,help:account_overdue_control.field_res_config_settings__overdue_grace_days
+msgid ""
+"Number of days after an invoice installment due date before it is considered"
+" overdue. 0 means any unpaid installment past its payment term due date "
+"triggers the block."
+msgstr ""
+"Número de días adicionales después de la fecha de vencimiento de una cuota "
+"antes de considerarla vencida. 0 significa que cualquier cuota impaga "
+"pasada su fecha de vencimiento activa el bloqueo."
+
+#. module: account_overdue_control
+#. odoo-python
+#: code:addons/account_overdue_control/models/res_partner.py:0
+msgid ""
+"Only accounting managers or users allowed to bypass overdue control can "
+"manage customer overdue exemptions."
+msgstr ""
+"Solo los administradores contables o usuarios con permiso para omitir el "
+"control de vencidas pueden gestionar las exenciones de clientes."
+
+#. module: account_overdue_control
+#: model:ir.model.fields,help:account_overdue_control.field_res_company__overdue_cutoff_date
+#: model:ir.model.fields,help:account_overdue_control.field_res_config_settings__overdue_cutoff_date
+msgid ""
+"Optional cutoff date. Unpaid invoices or imported receivable journal entries"
+" whose due date (or accounting date when no due date is set) is earlier than"
+" this date will be excluded from the overdue block."
+msgstr ""
+"Fecha de corte opcional. Las facturas impagas o asientos importados contra "
+"cuentas por cobrar cuya fecha de vencimiento (o fecha contable si no tiene "
+"vencimiento) sea anterior a esta fecha quedarán excluidos del bloqueo."
+
+#. module: account_overdue_control
+#. odoo-python
+#: code:addons/account_overdue_control/models/sale_order.py:0
+msgid ""
+"Order confirmed by %(user)s bypassing the overdue invoices block. "
+"%(message)s Reason: %(reason)s"
+msgstr ""
+"Orden confirmada por %(user)s omitiendo el bloqueo por facturas vencidas. "
+"%(message)s Motivo: %(reason)s"
+
+#. module: account_overdue_control
+#: model:ir.model.fields,field_description:account_overdue_control.field_account_bank_statement_line__overdue_bypass_user_id
+#: model:ir.model.fields,field_description:account_overdue_control.field_account_move__overdue_bypass_user_id
+#: model:ir.model.fields,field_description:account_overdue_control.field_sale_order__overdue_bypass_user_id
+msgid "Overdue Bypass Approved By"
+msgstr "Omisión aprobada por"
+
+#. module: account_overdue_control
+#: model:ir.model.fields,field_description:account_overdue_control.field_account_bank_statement_line__overdue_bypass_date
+#: model:ir.model.fields,field_description:account_overdue_control.field_account_move__overdue_bypass_date
+#: model:ir.model.fields,field_description:account_overdue_control.field_sale_order__overdue_bypass_date
+msgid "Overdue Bypass Date"
+msgstr "Fecha de omisión"
+
+#. module: account_overdue_control
+#: model:ir.model.fields,field_description:account_overdue_control.field_account_bank_statement_line__overdue_bypass_reason
+#: model:ir.model.fields,field_description:account_overdue_control.field_account_move__overdue_bypass_reason
+#: model:ir.model.fields,field_description:account_overdue_control.field_sale_order__overdue_bypass_reason
+msgid "Overdue Bypass Reason"
+msgstr "Motivo de omisión de bloqueo"
+
+#. module: account_overdue_control
+#: model_terms:ir.ui.view,arch_db:account_overdue_control.view_move_form_overdue_control
+#: model_terms:ir.ui.view,arch_db:account_overdue_control.view_order_form_overdue_control
+msgid "Overdue Control Bypass"
+msgstr "Omisión de control de vencidas"
+
+#. module: account_overdue_control
+#: model:ir.model.fields,field_description:account_overdue_control.field_account_bank_statement_line__overdue_control_can_view_invoices
+#: model:ir.model.fields,field_description:account_overdue_control.field_account_move__overdue_control_can_view_invoices
+#: model:ir.model.fields,field_description:account_overdue_control.field_sale_order__overdue_control_can_view_invoices
+msgid "Overdue Control Can View Invoices"
+msgstr "Puede ver facturas vencidas"
+
+#. module: account_overdue_control
+#: model:ir.model.fields,field_description:account_overdue_control.field_account_bank_statement_line__overdue_control_message
+#: model:ir.model.fields,field_description:account_overdue_control.field_account_move__overdue_control_message
+#: model:ir.model.fields,field_description:account_overdue_control.field_sale_order__overdue_control_message
+msgid "Overdue Control Message"
+msgstr "Mensaje de control de vencidas"
+
+#. module: account_overdue_control
+#: model:ir.model.fields,field_description:account_overdue_control.field_res_company__overdue_grace_days
+#: model:ir.model.fields,field_description:account_overdue_control.field_res_config_settings__overdue_grace_days
+msgid "Overdue Grace Days"
+msgstr "Días de gracia tras vencimiento"
+
+#. module: account_overdue_control
+#. odoo-python
+#: code:addons/account_overdue_control/models/res_partner.py:0
+msgid "Overdue Invoices"
+msgstr "Facturas vencidas"
+
+#. module: account_overdue_control
+#: model:res.groups.privilege,name:account_overdue_control.privilege_overdue_control
+#: model_terms:ir.ui.view,arch_db:account_overdue_control.res_config_settings_view_form_overdue_control
+#: model_terms:ir.ui.view,arch_db:account_overdue_control.view_partner_property_form_overdue_control
+msgid "Overdue Invoices Control"
+msgstr "Control de facturas vencidas"
+
+#. module: account_overdue_control
+#: model:ir.model,name:account_overdue_control.model_account_overdue_bypass_wizard
+msgid "Overdue Invoices Control Bypass Wizard"
+msgstr "Asistente de omisión de bloqueo por facturas vencidas"
+
+#. module: account_overdue_control
+#. odoo-python
+#: code:addons/account_overdue_control/models/res_partner.py:0
+msgid "Overdue Receivable Items"
+msgstr "Partidas por cobrar vencidas"
+
+#. module: account_overdue_control
+#: model:ir.model.fields,field_description:account_overdue_control.field_account_overdue_bypass_wizard__overdue_message
+msgid "Overdue Summary"
+msgstr "Resumen de mora"
+
+#. module: account_overdue_control
+#: model:ir.model.fields,help:account_overdue_control.field_res_company__overdue_tolerance
+#: model:ir.model.fields,help:account_overdue_control.field_res_config_settings__overdue_tolerance
+msgid ""
+"Overdue balance (in company currency) allowed before blocking the customer. "
+"0 means any overdue amount triggers the block."
+msgstr ""
+"Saldo vencido (en la moneda de la compañía) permitido antes de bloquear al "
+"cliente. 0 significa que cualquier monto vencido activa el bloqueo."
+
+#. module: account_overdue_control
+#: model:ir.model.constraint,message:account_overdue_control.constraint_res_company_check_overdue_grace_days
+msgid "Overdue grace days must be greater than or equal to 0."
+msgstr "Los días de gracia por vencimiento deben ser mayores o iguales a 0."
+
+#. module: account_overdue_control
+#. odoo-python
+#: code:addons/account_overdue_control/wizard/overdue_bypass_wizard.py:0
+msgid "Please enter a valid reason to bypass the overdue invoices block."
+msgstr ""
+"Ingrese un motivo válido para omitir el bloqueo por facturas vencidas."
+
+#. module: account_overdue_control
+#. odoo-python
+#: code:addons/account_overdue_control/models/res_partner.py:0
+msgid ""
+"Please provide a reason for exempting %(partner)s from the overdue invoices "
+"control."
+msgstr ""
+"Debe indicar un motivo para eximir a %(partner)s del control de facturas "
+"vencidas."
+
+#. module: account_overdue_control
+#. odoo-python
+#: code:addons/account_overdue_control/models/account_move.py:0
+msgid ""
+"Posted by %(user)s bypassing the overdue invoices block. %(message)s "
+"Reason: %(reason)s"
+msgstr ""
+"Publicada por %(user)s omitiendo el bloqueo por facturas vencidas. "
+"%(message)s Motivo: %(reason)s"
+
+#. module: account_overdue_control
+#: model:ir.model.fields,help:account_overdue_control.field_res_partner__overdue_control_exempt_reason
+#: model:ir.model.fields,help:account_overdue_control.field_res_users__overdue_control_exempt_reason
+msgid ""
+"Reason explaining why this customer is exempt from the overdue invoices "
+"block."
+msgstr ""
+"Motivo que explica por qué este cliente está exento del bloqueo por facturas"
+" vencidas."
+
+#. module: account_overdue_control
+#: model_terms:ir.ui.view,arch_db:account_overdue_control.view_partner_property_form_overdue_control
+msgid "Reason for exempting this customer..."
+msgstr "Motivo por el cual se exime a este cliente..."
+
+#. module: account_overdue_control
+#: model:ir.model,name:account_overdue_control.model_sale_order
+#: model:ir.model.fields.selection,name:account_overdue_control.selection__account_overdue_bypass_wizard__res_model__sale_order
+msgid "Sales Order"
+msgstr "Orden de venta"
+
+#. module: account_overdue_control
+#. odoo-python
+#: code:addons/account_overdue_control/models/account_move.py:0
+msgid ""
+"The following invoices cannot be posted because the customer has overdue invoices past their payment term due dates:\n"
+"%(lines)s\n"
+"\n"
+"Register the pending payments, exempt the customer with a reason, or ask an authorized user to bypass the block with a reason."
+msgstr ""
+"Las siguientes facturas no se pueden publicar porque el cliente tiene facturas vencidas que superaron los días de sus términos de pago:\n"
+"%(lines)s\n"
+"\n"
+"Registre los pagos pendientes, marque al cliente como exento indicando el motivo o solicite a un usuario autorizado que omita el bloqueo ingresando un motivo."
+
+#. module: account_overdue_control
+#. odoo-python
+#: code:addons/account_overdue_control/models/sale_order.py:0
+msgid ""
+"The following sales orders cannot be confirmed and must remain as quotations because the customer has overdue invoices past their payment term due dates:\n"
+"%(lines)s\n"
+"\n"
+"Register the pending payments, exempt the customer with a reason, or ask an authorized user to bypass the block with a reason."
+msgstr ""
+"Las siguientes órdenes de venta no se pueden confirmar y permanecerán como cotizaciones porque el cliente tiene facturas vencidas que superaron los días de sus términos de pago:\n"
+"%(lines)s\n"
+"\n"
+"Registre los pagos pendientes, marque al cliente como exento indicando el motivo o solicite a un usuario autorizado que omita el bloqueo ingresando un motivo."
+
+#. module: account_overdue_control
+#. odoo-python
+#: code:addons/account_overdue_control/wizard/overdue_bypass_wizard.py:0
+msgid "The target document no longer exists."
+msgstr "El documento destino ya no existe."
+
+#. module: account_overdue_control
+#. odoo-python
+#: code:addons/account_overdue_control/models/account_move.py:0
+msgid "This invoice is not currently blocked by overdue invoices."
+msgstr "Esta factura no se encuentra actualmente bloqueada por mora."
+
+#. module: account_overdue_control
+#. odoo-python
+#: code:addons/account_overdue_control/models/sale_order.py:0
+msgid "This sales order is not currently blocked by overdue invoices."
+msgstr "Esta orden de venta no se encuentra actualmente bloqueada por mora."
+
+#. module: account_overdue_control
+#: model:ir.model.fields,field_description:account_overdue_control.field_res_company__overdue_tolerance
+#: model:ir.model.fields,field_description:account_overdue_control.field_res_config_settings__overdue_tolerance
+msgid "Tolerated Overdue Amount"
+msgstr "Monto vencido tolerado"
+
+#. module: account_overdue_control
+#: model:ir.model.constraint,message:account_overdue_control.constraint_res_company_check_overdue_tolerance
+msgid "Tolerated overdue amount must be greater than or equal to 0."
+msgstr "El monto vencido tolerado debe ser mayor o igual a 0."
+
+#. module: account_overdue_control
+#: model:res.groups,comment:account_overdue_control.group_overdue_control_bypass
+msgid ""
+"Users in this group can authorize and bypass the overdue invoices block on "
+"sales orders and customer invoices by providing a mandatory reason, and can "
+"manage customer exemptions."
+msgstr ""
+"Los usuarios de este grupo pueden autorizar y omitir el bloqueo por "
+"facturas vencidas en órdenes de venta y facturas de cliente indicando un "
+"motivo obligatorio, y pueden gestionar las exenciones de clientes."
+
+#. module: account_overdue_control
+#: model_terms:ir.ui.view,arch_db:account_overdue_control.view_move_form_overdue_control
+#: model_terms:ir.ui.view,arch_db:account_overdue_control.view_order_form_overdue_control
+msgid "View overdue invoices"
+msgstr "Ver facturas vencidas"
+
+#. module: account_overdue_control
+#: model:ir.model.fields,help:account_overdue_control.field_res_company__overdue_control_enabled
+#: model:ir.model.fields,help:account_overdue_control.field_res_config_settings__overdue_control_enabled
+msgid ""
+"When enabled, all customers with posted unpaid invoices past their payment "
+"term due date (plus grace days) and exceeding the tolerated amount are "
+"blocked from confirming sales orders and posting new customer invoices."
+msgstr ""
+"Cuando está activo, todos los clientes con facturas publicadas impagas cuya "
+"fecha de vencimiento (según términos de pago más días de gracia) haya "
+"pasado y cuyo saldo supere la tolerancia quedan bloqueados para confirmar "
+"órdenes de venta y publicar nuevas facturas."
+
+#. module: account_overdue_control
+#. odoo-python
+#: code:addons/account_overdue_control/models/account_move.py:0
+#: code:addons/account_overdue_control/models/sale_order.py:0
+#: code:addons/account_overdue_control/wizard/overdue_bypass_wizard.py:0
+msgid "You are not authorized to bypass the overdue invoices block."
+msgstr "No está autorizado para omitir el bloqueo por facturas vencidas."

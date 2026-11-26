@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="view_order_form_overdue_control" model="ir.ui.view">
+        <field name="name">sale.order.form.overdue.control</field>
+        <field name="model">sale.order</field>
+        <field name="inherit_id" ref="sale.view_order_form" />
+        <field name="arch" type="xml">
+            <xpath expr="//form/sheet" position="before">
+                <field name="overdue_control_blocked" invisible="1" />
+                <field name="overdue_control_can_view_invoices" invisible="1" />
+                <div class="alert alert-danger"
+                    role="alert"
+                    invisible="not overdue_control_blocked">
+                    <field name="overdue_control_message" readonly="1" class="mb-0" />
+                    <span class="d-block">This document will remain as a quotation until overdue invoices are
+                        settled or authorized.</span>
+                    <div class="d-flex gap-2">
+                        <button name="action_view_overdue_invoices" type="object"
+                            class="btn btn-link alert-link p-0 align-baseline"
+                            string="View overdue invoices"
+                            invisible="not overdue_control_can_view_invoices" />
+                        <button name="action_open_overdue_bypass_wizard" type="object"
+                            class="btn btn-sm btn-outline-danger ms-auto"
+                            string="Bypass block"
+                            groups="account_overdue_control.group_overdue_control_bypass" />
+                    </div>
+                </div>
+            </xpath>
+            <xpath expr="//page[@name='other_information']" position="inside">
+                <group invisible="not overdue_bypass_reason">
+                    <group string="Overdue Control Bypass" name="overdue_bypass_info">
+                        <field name="overdue_bypass_user_id" />
+                        <field name="overdue_bypass_date" />
+                        <field name="overdue_bypass_reason" />
+                    </group>
+                </group>
+            </xpath>
+        </field>
+    </record>
+</odoo>

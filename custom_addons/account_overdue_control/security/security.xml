@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="privilege_overdue_control" model="res.groups.privilege">
+        <field name="name">Overdue Invoices Control</field>
+        <field name="category_id" ref="base.module_category_accounting_accounting"/>
+    </record>
+
+    <record id="group_overdue_control_bypass" model="res.groups">
+        <field name="name">Bypass overdue invoices block</field>
+        <field name="privilege_id" ref="privilege_overdue_control"/>
+        <field name="comment">Users in this group can authorize and bypass the overdue invoices block on sales orders and customer invoices by providing a mandatory reason, and can manage customer exemptions.</field>
+    </record>
+</odoo>

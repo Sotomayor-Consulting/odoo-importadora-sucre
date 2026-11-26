@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="res_config_settings_view_form_overdue_control" model="ir.ui.view">
+        <field name="name">res.config.settings.view.form.inherit.overdue.control</field>
+        <field name="model">res.config.settings</field>
+        <field name="inherit_id" ref="account.res_config_settings_view_form"/>
+        <field name="arch" type="xml">
+            <xpath expr="//app[@name='account']" position="inside">
+                <block title="Overdue Invoices Control" name="overdue_control_setting_container">
+                    <setting id="overdue_control_enabled_setting"
+                             string="Block Customers with Overdue Invoices"
+                             help="Block sales order confirmation and customer invoice posting for all customers with unpaid invoices past their payment term due dates.">
+                        <field name="overdue_control_enabled"/>
+                        <div class="content-group mt16" invisible="not overdue_control_enabled">
+                            <div class="row align-items-baseline">
+                                <label for="overdue_grace_days" class="col-lg-5 o_light_label"/>
+                                <div class="col-lg-7">
+                                    <field name="overdue_grace_days" class="oe_inline"/>
+                                </div>
+                            </div>
+                            <div class="row mt8 align-items-baseline">
+                                <label for="overdue_tolerance" class="col-lg-5 o_light_label"/>
+                                <div class="col-lg-7">
+                                    <field name="overdue_tolerance" class="oe_inline"/>
+                                </div>
+                            </div>
+                            <div class="row mt8 align-items-baseline">
+                                <label for="overdue_include_entries" class="col-lg-5 o_light_label"/>
+                                <div class="col-lg-7">
+                                    <field name="overdue_include_entries"/>
+                                </div>
+                            </div>
+                            <div class="row mt8 align-items-baseline">
+                                <label for="overdue_cutoff_date" class="col-lg-5 o_light_label"/>
+                                <div class="col-lg-7">
+                                    <field name="overdue_cutoff_date" class="oe_inline"/>
+                                </div>
+                            </div>
+                        </div>
+                    </setting>
+                </block>
+            </xpath>
+        </field>
+    </record>
+</odoo>
