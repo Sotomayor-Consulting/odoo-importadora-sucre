@@ -31,13 +31,36 @@ log() { printf '\033[1;34m[%s]\033[0m %s\n' "$(date +'%F %T')" "$*"; }
 die() { printf '\033[1;31mERROR:\033[0m %s\n' "$*" >&2; exit 1; }
 
 # --- Validacion -----------------------------------------------------------
+# data_dir de Odoo dentro del contenedor. Las imagenes anteriores al cambio a la
+# estructura tipo Odoo.sh usaban /var/lib/odoo.
+ODOO_DATA_DIR="${ODOO_DATA_DIR:-/home/odoo/data}"
+
 required="DB_CONTAINER ODOO_CONTAINER DB DB_USER DB_PASSWORD BACKUP_DIR"
 for v in $required; do
   eval "val=\${$v:-}"
   [ -n "$val" ] || die "Falta la variable '$v' en $ENV_FILE"
 done
-docker inspect "$DB_CONTAINER"   >/dev/null 2>&1 || die "Contenedor no encontrado: $DB_CONTAINER"
-docker inspect "$ODOO_CONTAINER" >/dev/null 2>&1 || die "Contenedor no encontrado: $ODOO_CONTAINER"
+# Los contenedores se pueden indicar por su nombre exacto o por el nombre del
+# SERVICIO. Hace falta lo segundo con las bases de datos nativas de Dokploy:
+# corren como servicio de Swarm y su contenedor se llama
+# "<servicio>.1.<id aleatorio>", que cambia en cada reinicio.
+#
+# 'docker container inspect' y no 'docker inspect' a secas: este ultimo acepta
+# cualquier tipo de objeto y da por bueno el nombre de un SERVICIO, con lo que
+# el nombre quedaria sin traducir y los 'docker exec' posteriores fallarian.
+resolve_container() {
+  if docker container inspect "$1" >/dev/null 2>&1; then
+    printf '%s\n' "$1"
+    return 0
+  fi
+  docker ps --filter "name=^$1\\." --format '{{.Names}}' | head -n 1
+}
+for v in DB_CONTAINER ODOO_CONTAINER; do
+  eval "name=\$$v"
+  found="$(resolve_container "$name")"
+  [ -n "$found" ] || die "Contenedor o servicio no encontrado: $name"
+  eval "$v=\$found"
+done
 
 # --- Evitar solapes (un backup a la vez) ----------------------------------
 mkdir -p "$BACKUP_DIR"
@@ -64,9 +87,9 @@ log "  database.dump: $(du -h "$DEST/database.dump" | cut -f1)"
 # 2. Filestore
 # =========================================================================
 log "Copiando filestore..."
-if docker exec "$ODOO_CONTAINER" test -d "/var/lib/odoo/filestore/$DB"; then
+if docker exec "$ODOO_CONTAINER" test -d "$ODOO_DATA_DIR/filestore/$DB"; then
   docker exec "$ODOO_CONTAINER" \
-    tar czf - -C "/var/lib/odoo/filestore" "$DB" > "$DEST/filestore.tgz"
+    tar czf - -C "$ODOO_DATA_DIR/filestore" "$DB" > "$DEST/filestore.tgz"
   log "  filestore.tgz: $(du -h "$DEST/filestore.tgz" | cut -f1)"
 else
   log "  (sin filestore todavia; se crea vacio)"

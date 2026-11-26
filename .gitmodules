@@ -1,0 +1,4 @@
+[submodule "shared"]
+	path = shared
+	url = ../odoo-sci-shared-addons.git
+	branch = 19.0

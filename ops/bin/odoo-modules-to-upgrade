@@ -1,0 +1,97 @@
+#!/usr/bin/env python3
+"""odoo-modules-to-upgrade — Que modulos hay que actualizar en esta base.
+
+Compara, para cada modulo instalado, la version de su __manifest__.py en la
+imagen con la que la base tiene registrada. Es la regla de Odoo.sh: un modulo
+se actualiza cuando sube su version.
+
+Uso (dentro del contenedor de Odoo; la conexion sale de las variables PG*):
+
+    odoo-modules-to-upgrade [BASE]
+
+Salida estandar: los nombres a actualizar, separados por comas, listos para
+'odoo-bin -u'. Vacia si no hay nada que actualizar. Los avisos van a la salida
+de error, para no contaminar la lista.
+
+Codigo de salida:
+    0  consulta hecha (haya o no modulos que actualizar)
+    3  la base no existe o no es una base de Odoo: no hay nada que comparar
+    1  cualquier otro error
+"""
+import os
+import sys
+
+
+def warn(msg):
+    print(f"[modulos] {msg}", file=sys.stderr)
+
+
+def main():
+    db = sys.argv[1] if len(sys.argv) > 1 else os.environ.get("PGDATABASE")
+    if not db:
+        warn("falta el nombre de la base (argumento o PGDATABASE)")
+        return 1
+
+    import psycopg2
+
+    # Conexion directa: no se carga el registro de Odoo, que es lento y fallaria
+    # justo cuando el esquema esta desfasado, que es el caso que nos interesa.
+    try:
+        conn = psycopg2.connect(dbname=db)
+    except psycopg2.OperationalError as exc:
+        if "does not exist" in str(exc):
+            return 3
+        warn(f"no se pudo conectar a '{db}': {str(exc).strip()}")
+        return 1
+
+    try:
+        with conn, conn.cursor() as cr:
+            cr.execute("SELECT to_regclass('public.ir_module_module')")
+            if cr.fetchone()[0] is None:
+                return 3
+            cr.execute(
+                "SELECT name, latest_version FROM ir_module_module "
+                "WHERE state IN ('installed', 'to upgrade')"
+            )
+            installed = dict(cr.fetchall())
+    finally:
+        conn.close()
+
+    # Las versiones del codigo se leen con la propia API de Odoo, para aplicar
+    # exactamente su misma normalizacion ('1.2' -> '19.0.1.2').
+    import logging
+
+    logging.disable(logging.CRITICAL)
+    from odoo.modules.module import Manifest, initialize_sys_path
+    from odoo.tools import config
+    from odoo.tools.parse_version import parse_version
+
+    config.parse_config([])
+    initialize_sys_path()
+    code = {m.name: m.version for m in Manifest.all_addon_manifests()}
+
+    upgrade, missing, older = [], [], []
+    for name, db_version in sorted(installed.items()):
+        if name not in code:
+            missing.append(name)
+        elif not db_version:
+            upgrade.append(name)
+        elif parse_version(code[name]) > parse_version(db_version):
+            upgrade.append(name)
+        elif parse_version(code[name]) < parse_version(db_version):
+            older.append(f"{name} (base {db_version}, imagen {code[name]})")
+
+    if missing:
+        # Instalado en la base pero ausente de la imagen: Odoo arrancara con
+        # avisos y lo que dependa de ese modulo fallara.
+        warn("instalados en la base pero AUSENTES de la imagen: " + ", ".join(missing))
+    if older:
+        # La imagen es mas vieja que la base: nunca se "desactualiza" sola.
+        warn("la imagen trae una version ANTERIOR a la de la base: " + "; ".join(older))
+
+    print(",".join(upgrade))
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())

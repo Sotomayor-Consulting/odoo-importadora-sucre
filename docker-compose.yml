@@ -1,64 +1,84 @@
+# Este stack lleva SOLO Odoo. PostgreSQL es un servicio aparte, creado en
+# Dokploy como base de datos nativa (ver docs/postgres-dokploy.md): asi un
+# despliegue de Odoo nunca toca la base, y esta tiene su propio ciclo de vida,
+# sus backups y sus limites.
+#
+# Para levantar todo en local hay un Postgres de pruebas en
+# docker-compose.local.yml (ver docs/pruebas-locales.md).
 services:
-  db:
-    image: postgres:16
-    # max_connections elevado para dar cabida a (workers + 2) x db_maxconn.
-    command: ["postgres", "-c", "max_connections=200"]
-    environment:
-      # Superusuario del contenedor: SOLO administracion y backups.
-      POSTGRES_USER: ${POSTGRES_USER}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
-      POSTGRES_DB: postgres
-      # Rol de aplicacion (sin superusuario) que crea db-init/10-odoo-role.sh
-      # y con el que se conecta Odoo.
-      ODOO_DB_USER: ${ODOO_DB_USER}
-      ODOO_DB_PASSWORD: ${ODOO_DB_PASSWORD}
-    volumes:
-      - db-data:/var/lib/postgresql/data
-      # Scripts de inicializacion. Postgres los corre una unica vez, cuando el
-      # volumen esta vacio. Aqui se crea el rol de aplicacion de Odoo.
-      - ./db-init:/docker-entrypoint-initdb.d:ro
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d postgres"]
-      interval: 10s
-      timeout: 5s
-      retries: 10
-    # Solo en la red interna: la base NUNCA se expone a la red compartida
-    # del proxy. Es la razon de separar las dos redes.
-    networks:
-      - internal
-    restart: unless-stopped
-
   odoo:
     build:
       context: .
       secrets:
-        - r2_url
-    depends_on:
-      db:
-        condition: service_healthy
+        - r2_access_key_id
+        - r2_secret_access_key
+        - r2_object_url
     environment:
-      # Consumidas por entrypoint.sh para construir los argumentos de
-      # conexion. Odoo se conecta con el ROL DE APLICACION, no con el
-      # superusuario. Ver el comentario en odoo.conf.
-      HOST: db
-      PORT: 5432
-      USER: ${ODOO_DB_USER}
-      PASSWORD: ${ODOO_DB_PASSWORD}
-      # Base que crea/sirve el stack (coincide con db_name/dbfilter en odoo.conf).
-      DB_NAME: ${DB_NAME:-importadora_sucre}
+      # Odoo 19 lee estas variables de forma nativa (ver odoo.conf); el
+      # entrypoint ya no construye argumentos. Los valores salen del panel de
+      # variables de Dokploy, distintos en cada entorno (ver env.example).
+      #
+      # --- Conexion y base. Odoo se conecta con el ROL DE APLICACION, no con
+      # el superusuario de Postgres.
+      # Nombre interno del servicio Postgres en Dokploy ("Internal Host").
+      # entrypoint.sh espera a que responda antes de arrancar Odoo.
+      PGHOST: ${DB_HOST:?Define DB_HOST}
+      PGPORT: ${DB_PORT:-5432}
+      PGUSER: ${ODOO_DB_USER:?Define ODOO_DB_USER}
+      PGPASSWORD: ${ODOO_DB_PASSWORD:?Define ODOO_DB_PASSWORD}
+      # Sin valor por defecto a proposito: un entorno que olvide definirla debe
+      # fallar al desplegar, no apuntar en silencio a la base de otro entorno.
+      PGDATABASE: ${DB_NAME:?Define DB_NAME}
+      # Master password (gestion de bases). No se versiona.
+      ODOO_ADMIN_PASSWD: ${ADMIN_PASSWD:?Define ADMIN_PASSWD}
+      # --- Dimensionamiento. Los valores por defecto son los de STAGING (los
+      # mas conservadores): si produccion olvida definirlos va lenta, no rota.
+      # Con workers > 0 Odoo abre el puerto gevent 8072 (websocket).
+      ODOO_WORKERS: ${ODOO_WORKERS:-2}
+      ODOO_MAX_CRON_THREADS: ${ODOO_MAX_CRON_THREADS:-1}
+      # Bytes. Sobre el limite blando el worker se recicla al acabar la
+      # peticion; el duro lo mata en el acto.
+      ODOO_LIMIT_MEMORY_SOFT: ${ODOO_LIMIT_MEMORY_SOFT:-1073741824}
+      ODOO_LIMIT_MEMORY_HARD: ${ODOO_LIMIT_MEMORY_HARD:-1610612736}
+      # Segundos. Amplios para nomina, cierres contables e importaciones.
+      ODOO_LIMIT_TIME_CPU: ${ODOO_LIMIT_TIME_CPU:-600}
+      ODOO_LIMIT_TIME_REAL: ${ODOO_LIMIT_TIME_REAL:-1200}
+      ODOO_LIMIT_TIME_REAL_CRON: ${ODOO_LIMIT_TIME_REAL_CRON:-1800}
+      # Conexiones a Postgres por proceso. (workers + 2) x db_maxconn debe
+      # caber en el max_connections de Postgres.
+      ODOO_DB_MAXCONN: ${ODOO_DB_MAXCONN:-20}
+      # --- Backups (las consume odoo-backup; ver docs/backups.md).
+      # ENV_NAME separa en R2 las copias de cada entorno.
+      ENV_NAME: ${ENV_NAME}
+      BACKUP_KEEP_DAILY: ${BACKUP_KEEP_DAILY:-7}
+      BACKUP_KEEP_WEEKLY: ${BACKUP_KEEP_WEEKLY:-4}
+      BACKUP_KEEP_MONTHLY: ${BACKUP_KEEP_MONTHLY:-3}
+      # Sin bucket, el backup queda solo en el servidor (el script lo avisa).
+      BACKUP_R2_BUCKET: ${BACKUP_R2_BUCKET:-}
+      BACKUP_R2_ENDPOINT: ${BACKUP_R2_ENDPOINT:-}
+      BACKUP_R2_ACCESS_KEY_ID: ${BACKUP_R2_ACCESS_KEY_ID:-}
+      BACKUP_R2_SECRET_ACCESS_KEY: ${BACKUP_R2_SECRET_ACCESS_KEY:-}
+      BACKUP_HEALTHCHECK_URL: ${BACKUP_HEALTHCHECK_URL:-}
+      # --- Refresco de staging (las consume odoo-refresh-staging; ver
+      # docs/entornos-staging.md). DOMAIN fija la direccion web de la copia.
+      DOMAIN: ${DOMAIN}
+      REFRESH_SOURCE_PREFIX: ${REFRESH_SOURCE_PREFIX:-prod}
+      # --- Operacion (las consume entrypoint.sh, no Odoo).
       # En staging va a "1": no inicializa la base (se restaura con
       # refresh-staging.sh). En produccion se deja vacio.
       SKIP_DB_INIT: ${SKIP_DB_INIT:-}
-      # Master password, inyectada por el entrypoint (no se versiona).
-      ADMIN_PASSWD: ${ADMIN_PASSWD}
-      # Actualizacion de modulos en el arranque (aplica migraciones). Vacio en
-      # operacion normal; se pone 'all' (o una lista) SOLO en el despliegue de
-      # actualizacion y se vuelve a vaciar despues. Ver el ritual en la doc.
+      # Actualizacion de modulos en el arranque. Vacio = automatica: los modulos
+      # cuya version subio. 'all', una lista o 'none' solo para forzar; vaciar
+      # despues. Ver docs/despliegue-dokploy.md, seccion 10.
       UPGRADE: ${UPGRADE:-}
     volumes:
       # Filestore y sesiones. Sin esto se pierden los adjuntos en cada
       # redespliegue y las sesiones se invalidan.
-      - odoo-data:/var/lib/odoo
+      - odoo-data:/home/odoo/data
+      # Copias de seguridad locales (daily/ weekly/ monthly/). En un volumen
+      # aparte para que sobrevivan a los redespliegues y no se mezclen con los
+      # datos de la aplicacion.
+      - odoo-backups:/home/odoo/backups
     expose:
       - "8069"   # HTTP
       - "8072"   # websockets (chat, notificaciones en vivo)
@@ -67,17 +87,22 @@ services:
     # 8072 (el resto va al 8069). El dominio principal (8069) lo configuras por
     # la UI de Dokploy; este bloque solo añade la ruta del websocket.
     # DOMAIN y el certresolver deben coincidir con los de tu Dokploy.
+    #
+    # Los nombres de router y servicio de Traefik son GLOBALES al servidor: si
+    # dos stacks declaran el mismo nombre con reglas distintas, Traefik descarta
+    # el router y el websocket deja de funcionar sin ningun error visible. Por
+    # eso llevan ENV_NAME (staging, prod...), unico por entorno.
     labels:
       - "traefik.enable=true"
       - "traefik.docker.network=dokploy-network"
-      - "traefik.http.routers.odoo-ws.rule=Host(`${DOMAIN}`) && PathPrefix(`/websocket`)"
-      - "traefik.http.routers.odoo-ws.entrypoints=websecure"
-      - "traefik.http.routers.odoo-ws.tls=true"
-      - "traefik.http.routers.odoo-ws.tls.certresolver=letsencrypt"
+      - "traefik.http.routers.importadora-${ENV_NAME:?Define ENV_NAME}-ws.rule=Host(`${DOMAIN:?Define DOMAIN}`) && PathPrefix(`/websocket`)"
+      - "traefik.http.routers.importadora-${ENV_NAME}-ws.entrypoints=websecure"
+      - "traefik.http.routers.importadora-${ENV_NAME}-ws.tls=true"
+      - "traefik.http.routers.importadora-${ENV_NAME}-ws.tls.certresolver=letsencrypt"
       # Prioridad alta para ganar sobre el router principal de '/'.
-      - "traefik.http.routers.odoo-ws.priority=100"
-      - "traefik.http.routers.odoo-ws.service=odoo-ws"
-      - "traefik.http.services.odoo-ws.loadbalancer.server.port=8072"
+      - "traefik.http.routers.importadora-${ENV_NAME}-ws.priority=100"
+      - "traefik.http.routers.importadora-${ENV_NAME}-ws.service=importadora-${ENV_NAME}-ws"
+      - "traefik.http.services.importadora-${ENV_NAME}-ws.loadbalancer.server.port=8072"
     healthcheck:
       # /web/health responde 200 cuando Odoo esta listo. start_period amplio
       # para cubrir la inicializacion de la base en el primer arranque.
@@ -86,24 +111,43 @@ services:
       timeout: 5s
       retries: 6
       start_period: 180s
+    # Techo de recursos del contenedor. Staging y produccion comparten VPS: sin
+    # esto, una prueba pesada en staging puede dejar sin memoria a produccion.
+    # Por defecto, valores de staging.
+    mem_limit: ${ODOO_MEM_LIMIT:-2g}
+    cpus: ${ODOO_CPUS:-1.5}
+    # Odoo lanza subprocesos (wkhtmltopdf). Como PID 1 no recoge los huerfanos;
+    # un init minimo lo hace y reenvia las señales.
+    init: true
+    # Margen para que los workers terminen la peticion en curso al redesplegar
+    # (por defecto Docker mata el contenedor a los 10 s).
+    stop_grace_period: 60s
+    # Sin limite, el log del contenedor crece hasta llenar el disco.
+    logging:
+      driver: json-file
+      options:
+        max-size: "20m"
+        max-file: "5"
     networks:
-      - internal          # para hablar con la base
-      - dokploy-network   # para que el proxy lo alcance
+      # Red compartida de Dokploy: por ella llega el proxy (Traefik) y por
+      # ella se alcanza el servicio Postgres.
+      - dokploy-network
     restart: unless-stopped
 
-# La URL prefirmada de R2 se toma de la variable R2_URL que define Dokploy.
-# Verificado: Compose la resuelve desde el archivo .env que Dokploy genera,
-# sin necesidad de exportarla en el shell.
+# Descarga del fuente de Odoo desde R2 durante el build (ver Dockerfile). Los
+# valores salen de las variables que define Dokploy; Compose las resuelve desde
+# el archivo .env que Dokploy genera.
 # Nota: los secretos por 'environment' solo funcionan con 'docker compose'
 # (modo Compose de Dokploy), NO con 'docker stack deploy' (Swarm).
 secrets:
-  r2_url:
-    environment: R2_URL
+  r2_access_key_id:
+    environment: R2_ACCESS_KEY_ID
+  r2_secret_access_key:
+    environment: R2_SECRET_ACCESS_KEY
+  r2_object_url:
+    environment: R2_OBJECT_URL
 
 networks:
-  # Red privada del stack. La crea Compose.
-  internal:
-
   # Red compartida donde vive el proxy (Traefik) de Dokploy. Es "external":
   # Compose NO la crea, debe existir de antes. En el servidor la crea Dokploy;
   # en local se crea a mano:
@@ -112,5 +156,5 @@ networks:
     external: true
 
 volumes:
-  db-data:
   odoo-data:
+  odoo-backups:
